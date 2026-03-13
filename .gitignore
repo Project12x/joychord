@@ -1,0 +1,45 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+_deps/
+
+# JUCE generated files
+JuceLibraryCode/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.vcxproj.user
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+install_manifest.txt
+compile_commands.json
+
+# Binaries
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.vst3
+
+# Releases (preserved separately)
+releases/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp

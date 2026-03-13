@@ -1,0 +1,10 @@
+// Exclude build artifacts and deps from language server indexing
+{
+    "exclude": [
+        "build",
+        "out",
+        "_deps",
+        "cmake-build-*",
+        "JuceLibraryCode"
+    ]
+}
