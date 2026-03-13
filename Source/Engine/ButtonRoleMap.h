@@ -1,8 +1,9 @@
 #pragma once
-#include <juce_core/juce_core.h>
 #include <variant>
 #include <unordered_map>
 #include <string>
+
+namespace juce { class ValueTree; class String; }
 
 // ── Role Variants ─────────────────────────────────────────────────────────────
 
@@ -41,10 +42,10 @@ class ButtonRoleMap
 public:
     ButtonRoleMap();
 
-    void       setRole (ButtonId btn, ButtonRole role);
+    void             setRole (ButtonId btn, ButtonRole role);
     const ButtonRole& getRole (ButtonId btn) const;
 
-    // Serialization
+    // Serialization — implemented in .cpp which includes JUCE
     juce::ValueTree toValueTree()   const;
     void fromValueTree (const juce::ValueTree& tree);
 
@@ -55,8 +56,8 @@ private:
     std::unordered_map<int, ButtonRole> roles;
     ButtonRole fallback = RoleMute{};
 
-    static juce::String buttonIdToString (ButtonId id);
-    static ButtonId     stringToButtonId (const juce::String& s);
-    static juce::String roleToString     (const ButtonRole& role);
-    static ButtonRole   stringToRole     (const juce::String& type, const juce::ValueTree& node);
+    static std::string buttonIdToString (ButtonId id);
+    static ButtonId    stringToButtonId (const std::string& s);
+    static std::string roleToString     (const ButtonRole& role);
+    static ButtonRole  stringToRole     (const std::string& type, const juce::ValueTree& node);
 };

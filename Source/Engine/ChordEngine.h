@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <string>
 
 // Scale intervals (semitones from root) for supported modes
 enum class ScaleMode { Major, Minor, Dorian, Mixolydian, Phrygian, Lydian, WholeTone };

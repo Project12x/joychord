@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
+
+# Force all targets to use the dynamic MSVC CRT (/MD, /MDd) globally.
+# This avoids LNK2038 CRT-mismatch errors between sfizz/abseil (/MT by default) and JUCE (/MD).
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "" FORCE)
+
 project(Joychord VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -16,18 +21,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(JUCE)
 
 # ── sfizz ────────────────────────────────────────────────────────────────────
-FetchContent_Declare(
-    sfizz
-    GIT_REPOSITORY https://github.com/sfztools/sfizz.git
-    GIT_TAG        1.2.3
-    GIT_SHALLOW    TRUE
-)
-set(SFIZZ_CLIENTS OFF CACHE BOOL "" FORCE)
-set(SFIZZ_JACK    OFF CACHE BOOL "" FORCE)
-set(SFIZZ_VST3   OFF CACHE BOOL "" FORCE)
-set(SFIZZ_LV2    OFF CACHE BOOL "" FORCE)
-set(SFIZZ_AU     OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(sfizz)
+# sfizz Phase 5 integration. Disabled on MSVC Debug by default because abseil-cpp
+# (a sfizz dependency) uses /MTd (static CRT) which conflicts with JUCE's /MDd.
+# Re-enable when integrating sfizz in Phase 5; resolve the CRT mismatch then.
+option(JOYCHORD_ENABLE_SFIZZ "Include sfizz SFZ synthesizer" ON)
+if(JOYCHORD_ENABLE_SFIZZ AND NOT MSVC)
+    FetchContent_Declare(
+        sfizz
+        GIT_REPOSITORY https://github.com/sfztools/sfizz.git
+        GIT_TAG        1.2.3
+        GIT_SHALLOW    TRUE
+    )
+    set(SFIZZ_CLIENTS OFF CACHE BOOL "" FORCE)
+    set(SFIZZ_JACK    OFF CACHE BOOL "" FORCE)
+    set(SFIZZ_VST3   OFF CACHE BOOL "" FORCE)
+    set(SFIZZ_LV2    OFF CACHE BOOL "" FORCE)
+    set(SFIZZ_AU     OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(sfizz)
+endif()
 
 # ── spdlog ───────────────────────────────────────────────────────────────────
 FetchContent_Declare(
@@ -62,6 +73,17 @@ juce_add_plugin(Joychord
     IS_SYNTH                 TRUE
 )
 
+# Force dynamic CRT on all JUCE-generated plugin subtargets (Standalone, VST3, SharedCode).
+# Needed because sfizz's abseil-cpp links /MTd by default, causing LNK2038 unless we
+# explicitly request /MDd on every subtarget that links against sfizz.
+if(MSVC)
+    foreach(_target Joychord Joychord_Standalone Joychord_VST3)
+        set_target_properties(${_target} PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        )
+    endforeach()
+endif()
+
 target_sources(Joychord PRIVATE
     Source/Plugin/PluginProcessor.cpp
     Source/Plugin/PluginEditor.cpp
@@ -89,7 +111,6 @@ target_link_libraries(Joychord PRIVATE
     juce::juce_dsp
     juce::juce_gui_basics
     juce::juce_gui_extra
-    sfizz::sfizz
     spdlog::spdlog
     # melatonin_blur -- re-added in UI phase with manual juce_add_module
     # XInput is a Windows system library
@@ -98,6 +119,18 @@ target_link_libraries(Joychord PRIVATE
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+# sfizz's abseil-cpp insists on /MTd (static CRT) and cannot be overridden via CMake cache.
+# Exclude the conflicting static CRT lib from the Windows link to allow JUCE's /MDd to win.
+if(MSVC)
+    target_link_options(Joychord PRIVATE /NODEFAULTLIB:libcmtd /NODEFAULTLIB:libcmt)
+endif()
+
+# Link sfizz only if the target was actually created (skipped on MSVC to avoid CRT mismatch)
+if(TARGET sfizz::sfizz)
+    target_link_libraries(Joychord PRIVATE sfizz::sfizz)
+    target_compile_definitions(Joychord PUBLIC JOYCHORD_HAS_SFIZZ=1)
+endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 enable_testing()
