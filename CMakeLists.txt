@@ -38,15 +38,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-# ── melatonin_blur ───────────────────────────────────────────────────────────
-FetchContent_Declare(
-    melatonin_blur
-    GIT_REPOSITORY https://github.com/sudara/melatonin_blur.git
-    GIT_TAG        main
-    GIT_SHALLOW    TRUE
-)
-FetchContent_MakeAvailable(melatonin_blur)
-
 # ── GoogleTest ───────────────────────────────────────────────────────────────
 FetchContent_Declare(
     googletest
@@ -100,7 +91,7 @@ target_link_libraries(Joychord PRIVATE
     juce::juce_gui_extra
     sfizz::sfizz
     spdlog::spdlog
-    melatonin_blur
+    # melatonin_blur -- re-added in UI phase with manual juce_add_module
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
     juce::juce_recommended_config_flags
