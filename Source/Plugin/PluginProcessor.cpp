@@ -372,6 +372,22 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // Process strum queue
     strumEngine.process (midi, buffer.getNumSamples());
 
+    // ── Phase 3b: Modulation Router ──
+    // Route analog sticks and triggers to MIDI CC / pitch bend.
+    // Callbacks inject events into the midi buffer at position 0.
+    modulationRouter.setCallbacks (
+        [&midi](int cc, int value) {
+            midi.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
+        },
+        [&midi](int bendValue) {
+            midi.addEvent (juce::MidiMessage::pitchWheel (1, bendValue), 0);
+        }
+    );
+
+    modulationRouter.processLeftStick  (gp.lStickX, gp.lStickY);
+    modulationRouter.processRightStick (gp.rStickX, gp.rStickY);
+    modulationRouter.processTriggers   (gp.lt, gp.rt);
+
     // ── Phase 4: Audio Rendering ──
 
     int activeSynthMode = static_cast<int> (*apvts.getRawParameterValue ("synthMode"));
