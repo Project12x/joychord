@@ -49,6 +49,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
+# ── mahler.c ─────────────────────────────────────────────────────────────────
+# Western music theory library (C99, MIT). Used for chord naming and validation.
+# Upstream CMake only sets src/ as PRIVATE include; we patch to PUBLIC so that
+# inc/mahler.h can resolve its sub-includes (err/err.h, note/note.h, etc.).
+FetchContent_Declare(
+    mahler
+    GIT_REPOSITORY https://github.com/thelowsunoverthemoon/mahler.c.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(mahler)
+# Patch include directories: upstream only exposes src/ as PRIVATE
+target_include_directories(mahler PUBLIC
+    ${mahler_SOURCE_DIR}/inc
+    ${mahler_SOURCE_DIR}/src
+)
+
 # ── GoogleTest ───────────────────────────────────────────────────────────────
 FetchContent_Declare(
     googletest
@@ -96,7 +113,6 @@ target_sources(Joychord PRIVATE
 
 target_include_directories(Joychord PRIVATE
     Source
-    vendor
 )
 
 target_compile_definitions(Joychord PUBLIC
@@ -112,6 +128,7 @@ target_link_libraries(Joychord PRIVATE
     juce::juce_gui_basics
     juce::juce_gui_extra
     spdlog::spdlog
+    mahler
     # melatonin_blur -- re-added in UI phase with manual juce_add_module
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
@@ -140,11 +157,12 @@ add_executable(JoychordTests
     Source/Engine/ChordEngine.cpp
 )
 
-target_include_directories(JoychordTests PRIVATE Source vendor)
+target_include_directories(JoychordTests PRIVATE Source)
 
 target_link_libraries(JoychordTests PRIVATE
     GTest::gtest_main
     spdlog::spdlog
+    mahler
 )
 
 include(GoogleTest)
