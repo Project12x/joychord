@@ -10,6 +10,12 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 
 ### Added
+
+- **Phase 2.5: Playable Checkpoint** (v0.2.0)
+- `SimpleVoice`: sine wave + ADSR SynthesiserVoice (12-voice polyphony)
+- processBlock wiring: XInput gamepad -> button-to-degree map (A=I, B=V, X=IV, Y=vi) -> ChordEngine with Dijkstra auto-voicing -> MidiBuffer -> juce::Synthesiser audio output
+- Basic UI: key/scale/voicing/octave dropdowns (APVTS-attached), gamepad controller index selector, chord name display (36pt), Xbox diamond button indicators, connection status
+- APVTS params synced to ChordEngine each audio block
 - Initial architecture design and feature specification
 - Standard project documentation (README, STATE, ARCHITECTURE, ROADMAP, HOWTO, CHANGELOG)
 - Phase 1 project scaffold: all stub source files for ChordEngine, StrumEngine, ButtonRoleMap, ModulationRouter, GamepadInput, XInputGamepad, PluginProcessor, PluginEditor
