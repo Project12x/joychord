@@ -32,12 +32,12 @@ Minimal end-to-end wiring to get a playable instrument. Goal: hold a controller,
 
 - **XInput polling** -- implement real `XInputGamepad::poll()` on a background thread (~100Hz)
 - **Hardcoded button map** -- face buttons A/B/X/Y = degrees I/IV/V/vi, no modifier system yet
-- **MIDI output in processBlock** -- ChordEngine result -> `juce::MidiBuffer` note-on/off
-- **Standalone MIDI** -- `juce::MidiMessageCollector` for testing without a DAW
+- **Basic JUCE synth** -- `juce::Synthesiser` with 12 `SimpleVoice` (sine + ADSR). Hear chords directly from the Standalone, no DAW needed.
+- **MIDI output** -- ChordEngine result -> `juce::MidiBuffer` note-on/off (also works in DAW)
 - **No strum timing** -- instant chord changes (StrumEngine deferred)
 - **No modulation** -- analog sticks ignored for now
 - **No UI** -- just the default JUCE window with chord name label
-- Tag as v0.2.0 when controller plays chords through MIDI output
+- Tag as v0.2.0 when controller plays chords through speakers
 
 ## Phase 3: Button Role System
 
