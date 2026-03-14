@@ -4,33 +4,35 @@
 - Architecture and feature spec
 - Standard project documentation
 
-## Phase 1: Project Scaffold
+## Phase 1: Project Scaffold ✅  (v0.1.0)
 - JUCE 8 CMake project (Standalone + VST3)
-- XInput gamepad polling on background thread
-- Lock-free FIFO between input and audio threads
-- GoogleTest harness
+- All stub source files (ChordEngine, StrumEngine, ButtonRoleMap, ModulationRouter, XInputGamepad)
+- GoogleTest harness — 4 stub tests passing
 - spdlog integration
-- All standard docs in place
+- sfizz declared but gated (`if(TARGET sfizz::sfizz)`) due to MSVC CRT mismatch
 
 ## Phase 2: Chord Engine
-- `ChordEngine`: key + scale model, Mahler.c integration
+- Integrate **mahler.c** as a real FetchContent dependency (replaces `vendor/mahler.h` placeholder)
+- `ChordEngine`: key + scale model using mahler.c `mah_get_scale()` / `mah_get_chord()`
 - Diatonic chord resolution (scale degrees I–vii)
-- Borrowed chord support (parallel minor)
-- `Inversion(n)` support
+- Borrowed chord support (parallel minor via `mah_get_scale()` on parallel mode)
+- `Inversion(n)` support via `mah_invert_chord()`
 - `Extension` types: 7th, sus4, sus2, add9
 - Voicing: close position + drop-2
+- **Dijkstra voicing scorer** — enumerate inversions, score by total semitone distance from previous chord, pick minimum-movement voicing. (Inspired by [optimal-voice-leading](https://github.com/willdickerson/optimal-voice-leading))
+- **Reverse chord identification** via `mah_return_chord()` — powers the UI chord name display
 - Full unit test coverage with mutation verification
 
 ## Phase 3: Button Role System
-- `ButtonRole` variant type
+- `ButtonRole` variant type (already stubbed)
 - `ButtonRoleMap`: physical button → role mapping
 - Modifier bitmask accumulation (LB, RB, LB+RB)
-- Default "Diatonic Rock" preset
-- Preset serialization (APVTS / JSON)
+- Default "Diatonic Rock" preset (already stubbed)
+- Preset serialization (APVTS / JSON via ValueTree)
 
 ## Phase 4: Strum & Articulation Engine
 - `StrumEngine`: hold → sustain, trigger → strum
-- Legato slide: common-tone retention on chord change
+- Legato slide: **common-tone retention** on chord change (uses Dijkstra voicing scorer output)
 - StrumDown / StrumUp with note spread timing (~10ms/note)
 - Analog trigger → velocity mapping
 
@@ -39,13 +41,13 @@
 - L-stick Y → CC11 expression
 - R-stick X → CC74 filter
 - R-stick Y → CC91 reverb
-- Deadzone filtering
+- Deadzone filtering with EMA smoothing
 
-## Phase 6: Internal Synth
-- Polyphonic JUCE `Synthesiser` (12 voices)
-- Simple wavetable voice (piano-adjacent)
-- Amp envelope tuned for chord/legato feel
-- R-stick filter routed to internal synth
+## Phase 6: Internal Synth (sfizz)
+- Resolve sfizz MSVC CRT mismatch (link as shared DLL or patch abseil CMakeLists)
+- Polyphonic sfizz SFZ player
+- Bundle basic SFZ instruments (piano, guitar, strings, bass)
+- R-stick filter routed to sfizz CC
 
 ## Phase 7: MIDI Output
 - `MidiOutput` from `PluginProcessor`
@@ -58,14 +60,31 @@
 - Controller layout visualization (Xbox button map)
 - Key wheel / scale selector
 - Role assignment per button (drag or dropdown)
-- Chord slot display (current chord name)
+- **Chord name display** — real-time `Cmaj7/E` powered by mahler.c `mah_return_chord()`
 - Output mode toggle (Internal Synth / MIDI Out)
+- melatonin_blur for glassmorphic panels
 
 ## Future / Post-v1
 - Rhythmic strum patterns (predefined + custom timing grids)
-- Velocity humanization (random ±offset per note)
+- Velocity humanization (random +/-offset per note)
 - Chord sets / song sections (A/B/C banks switchable mid-performance)
 - MIDI capture (record MIDI output to file)
 - Keys Lock mode (melody over held chord)
-- SDL2 backend (PS controller support)
+- Smart Suggest mode (highlight next-chord recommendations, informed by ChordSeqAI research)
+- SDL2 backend (PS/Switch controller support)
 - macOS / AU support
+- **Poompatoom shared engine** — extract common harmony/voicing layer when both projects mature
+
+---
+
+## Research & Reference Library
+
+Libraries and projects studied during planning. Not integrated but inform design decisions.
+
+| Library | What We Take From It |
+|---|---|
+| [Teoria.js](https://github.com/saebekassebil/teoria) (MIT) | API design reference for ChordEngine interface. Chord symbol parser grammar for UI display. |
+| [optimal-voice-leading](https://github.com/willdickerson/optimal-voice-leading) (MIT) | Dijkstra algorithm for minimum-movement voicing selection. Porting concept, not code. |
+| [ChordSeqAI](https://github.com/PetrIvan/chord-seq-ai-app) | Chord encoding vocabulary. Neural progression suggestion for future "Smart Suggest" feature. |
+| [music-gen](https://github.com/austonst/music-gen) (MIT) | Hierarchical repetition model (Motif→Theme→Piece). Relevant if adding auto-accompaniment. |
+| [Poompatoom](../../../Poompatoom) | 3-tier musicality constraints, gestural expression mapping. Will share code when both projects mature. |

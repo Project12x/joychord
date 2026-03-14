@@ -39,10 +39,12 @@ Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
 
 ### ChordEngine (`Source/Engine/ChordEngine`)
 - Maintains global key + scale selection
-- Resolves `Chord(degree)` → set of MIDI note numbers using Mahler.c interval math
-- Applies `Inversion(n)` to reorder the note set
+- Resolves `Chord(degree)` → set of MIDI note numbers using mahler.c interval math (`mah_get_scale`, `mah_get_chord`)
+- Applies `Inversion(n)` via `mah_invert_chord()`
 - Applies `Extension(type)` to add/remove intervals
 - Voicing options: close position, drop-2
+- **Dijkstra voicing scorer**: on chord change, enumerates possible voicings, scores each by total semitone distance from previous chord, picks minimum-movement voicing
+- **Reverse chord identification**: `mah_return_chord()` powers UI chord name display (`Cmaj7/E`)
 - All math is pure (no side effects); easily unit-tested without JUCE
 
 ### StrumEngine (`Source/Engine/StrumEngine`)
@@ -61,7 +63,7 @@ Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
 
 ### Plugin Layer (`Source/Plugin/`)
 - `PluginProcessor`: standard JUCE `AudioProcessor`; no audio processing in v1 (MIDI only from plugin perspective); drives internal synth in standalone
-- `PluginEditor`: controller layout visualization, key/scale picker, role assignment UI, output mode selector
+- `PluginEditor`: controller layout visualization, key/scale picker, role assignment UI, output mode selector, real-time chord name display
 
 ## Threading
 
@@ -82,11 +84,23 @@ XInput poll → GamepadEvent FIFO → ButtonRoleMap → ChordEngine/StrumEngine
 
 ## Dependencies
 
-| Library | Use | License |
-|---------|-----|---------|
-| JUCE 8 | Framework, MIDI, synth, UI | GPL / Commercial |
-| XInput (Windows SDK) | Gamepad input | Royalty-free |
-| Mahler.c (`vendor/mahler.h`) | Chord/interval math | MIT |
-| spdlog | Logging | MIT |
-| GoogleTest | Unit tests | BSD-3 |
-| melatonin_blur | UI blur/glow effects | MIT |
+| Library | Use | License | Integration |
+|---------|-----|---------|-------------|
+| JUCE 8 | Framework, MIDI, synth, UI | GPL / Commercial | FetchContent |
+| XInput (Windows SDK) | Gamepad input | Royalty-free | System lib |
+| mahler.c | Chord/interval/scale math, enharmonic spelling, reverse chord ID | MIT | FetchContent |
+| sfizz | SFZ sampler for internal synth | BSD-2 | FetchContent (gated, Phase 6) |
+| spdlog | Logging | MIT | FetchContent |
+| GoogleTest | Unit tests | BSD-3 | FetchContent |
+| melatonin_blur | UI blur/glow effects | MIT | Phase 8 |
+
+## Research References
+
+Design decisions informed by external projects (not integrated as code):
+
+| Project | What It Informs |
+|---------|----------------|
+| [Teoria.js](https://github.com/saebekassebil/teoria) | ChordEngine API design, chord symbol parser grammar |
+| [optimal-voice-leading](https://github.com/willdickerson/optimal-voice-leading) | Dijkstra voicing scorer algorithm |
+| [ChordSeqAI](https://github.com/PetrIvan/chord-seq-ai-app) | Chord encoding vocabulary, future "Smart Suggest" |
+| Poompatoom (internal) | 3-tier musicality constraints, gestural expression mapping |

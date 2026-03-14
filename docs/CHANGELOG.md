@@ -17,3 +17,5 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - `vendor/mahler.h` placeholder
 - ChordEngineTests stub: 4 tests (MajorScaleIntervalsCorrect, KeyTransposeCorrect, SeventhExtensionAdds-Note, BorrowedChordFromParallelMinor) — all pass
 - `Joychord_Standalone.exe` and `JoychordTests.exe` build cleanly on Windows (VS 2022 Debug)
+- Library research: evaluated 8 candidate libraries (mahler.c, Teoria.js, optimal-voice-leading, ChordSeqAI, music-gen, MusicTheoryCpp, NotofxMusicTheory, libremidi)
+- Updated ROADMAP, ARCHITECTURE with mahler.c integration plan, Dijkstra voicing scorer, chord name display, and Research References
