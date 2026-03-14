@@ -39,21 +39,30 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // UI-readable state (updated from audio thread via atomic)
-    std::atomic<int>  currentChordRoot{-1};   // MIDI note of chord root, or -1
+    // UI-readable state
+    std::atomic<int>  currentChordRoot{-1};
     std::atomic<bool> btnAState{false}, btnBState{false}, btnXState{false}, btnYState{false};
+    std::atomic<bool> dUpState{false}, dDownState{false}, dLeftState{false}, dRightState{false};
+    std::atomic<bool> lbState{false}, rbState{false};
     std::atomic<bool> gamepadConnected{false};
-
-    // Last chord name for UI display (not atomic -- read on timer, written on audio)
     juce::String lastChordName;
 
     // Gamepad setup
     void setControllerIndex (int idx) { gamepad.setControllerIndex (idx); }
 
+    // Preset management (called from UI thread)
+    void loadPreset (const std::string& presetId);
+    const std::string& currentPresetId() const { return roleMap.currentPresetId(); }
+
+    ButtonRoleMap& getRoleMap() { return roleMap; }
+
 private:
-    void timerCallback() override; // poll gamepad at ~100Hz
+    void timerCallback() override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Helper: map a ButtonId to the corresponding gamepad state bool
+    static bool getButtonState (const GamepadState& gp, ButtonId btn);
 
     ChordEngine      chordEngine;
     StrumEngine      strumEngine;
@@ -66,16 +75,16 @@ private:
     // Active MIDI notes for proper note-off tracking
     std::vector<int> activeNotes;
 
+    // Previous gamepad state for edge detection
+    GamepadState prevGamepadState;
+
     // Gamepad state snapshot (written by timer thread, read by audio thread)
     GamepadState latestGamepadState;
     juce::SpinLock gamepadLock;
 
-    // Hardcoded button-to-degree map for Phase 2.5
-    // A=I, B=V, X=IV, Y=vi
-    static constexpr int kDegreeA = 1;  // I
-    static constexpr int kDegreeB = 5;  // V
-    static constexpr int kDegreeX = 4;  // IV
-    static constexpr int kDegreeY = 6;  // vi
+    // Runtime state modified by roles
+    int  octaveOffset = 0;     // accumulated from RoleOctaveShift presses
+    int  activeExtension = 0;  // 0=none, set by held modifier buttons
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordProcessor)
 };

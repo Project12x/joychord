@@ -2,6 +2,7 @@
 #include <variant>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 namespace juce { class ValueTree; class String; }
 
@@ -36,6 +37,13 @@ enum class ButtonId
     Start, Back
 };
 
+// ── Preset names ──────────────────────────────────────────────────────────────
+struct PresetInfo
+{
+    std::string id;
+    std::string displayName;
+};
+
 // ── ButtonRoleMap ─────────────────────────────────────────────────────────────
 class ButtonRoleMap
 {
@@ -45,16 +53,23 @@ public:
     void             setRole (ButtonId btn, ButtonRole role);
     const ButtonRole& getRole (ButtonId btn) const;
 
-    // Serialization — implemented in .cpp which includes JUCE
+    // Serialization
     juce::ValueTree toValueTree()   const;
     void fromValueTree (const juce::ValueTree& tree);
 
-    // Load a named factory preset
-    void loadDefaultDiatonicRock();
+    // Factory presets
+    void loadPreset (const std::string& presetId);
+    static std::vector<PresetInfo> getFactoryPresets();
+    const std::string& currentPresetId() const { return activePresetId; }
 
 private:
     std::unordered_map<int, ButtonRole> roles;
     ButtonRole fallback = RoleMute{};
+    std::string activePresetId = "diatonic_rock";
+
+    void loadDiatonicRock();
+    void loadPopBallad();
+    void loadJazzVoicings();
 
     static std::string buttonIdToString (ButtonId id);
     static ButtonId    stringToButtonId (const std::string& s);

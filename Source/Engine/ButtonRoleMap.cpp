@@ -3,7 +3,7 @@
 
 ButtonRoleMap::ButtonRoleMap()
 {
-    loadDefaultDiatonicRock();
+    loadDiatonicRock();
 }
 
 void ButtonRoleMap::setRole (ButtonId btn, ButtonRole role)
@@ -17,17 +17,66 @@ const ButtonRole& ButtonRoleMap::getRole (ButtonId btn) const
     return it != roles.end() ? it->second : fallback;
 }
 
-void ButtonRoleMap::loadDefaultDiatonicRock()
+// ── Factory Presets ──────────────────────────────────────────────────────────
+
+std::vector<PresetInfo> ButtonRoleMap::getFactoryPresets()
 {
+    return {
+        { "diatonic_rock",  "Diatonic Rock" },
+        { "pop_ballad",     "Pop Ballad" },
+        { "jazz_voicings",  "Jazz Voicings" }
+    };
+}
+
+void ButtonRoleMap::loadPreset (const std::string& presetId)
+{
+    roles.clear();
+    activePresetId = presetId;
+
+    if (presetId == "pop_ballad")        loadPopBallad();
+    else if (presetId == "jazz_voicings") loadJazzVoicings();
+    else                                  loadDiatonicRock();
+}
+
+void ButtonRoleMap::loadDiatonicRock()
+{
+    activePresetId = "diatonic_rock";
+    // Face buttons: I, IV, V, vi
     setRole (ButtonId::A,      RoleChord       { 1 });
     setRole (ButtonId::X,      RoleChord       { 4 });
     setRole (ButtonId::B,      RoleChord       { 5 });
     setRole (ButtonId::Y,      RoleChord       { 6 });
+    // D-pad: remaining degrees + bVII
     setRole (ButtonId::DUp,    RoleChord       { 2 });
     setRole (ButtonId::DRight, RoleChord       { 3 });
     setRole (ButtonId::DDown,  RoleChord       { 7 });
     setRole (ButtonId::DLeft,  RoleBorrowed    { 7, 1 }); // bVII from parallel minor
+    // Modifiers
     setRole (ButtonId::LB,     RoleExtension   { 0 });    // seventh
+    setRole (ButtonId::RB,     RoleExtension   { 1 });    // sus4
+    // Strum triggers
+    setRole (ButtonId::RT,     RoleStrumDown   {});
+    setRole (ButtonId::LT,     RoleStrumUp     {});
+    // Octave shift
+    setRole (ButtonId::L3,     RoleOctaveShift { -1 });
+    setRole (ButtonId::R3,     RoleOctaveShift { +1 });
+}
+
+void ButtonRoleMap::loadPopBallad()
+{
+    activePresetId = "pop_ballad";
+    // Pop progression focus: I, V, vi, IV (the "four chord" progression)
+    setRole (ButtonId::A,      RoleChord       { 1 });    // I
+    setRole (ButtonId::B,      RoleChord       { 5 });    // V
+    setRole (ButtonId::Y,      RoleChord       { 6 });    // vi
+    setRole (ButtonId::X,      RoleChord       { 4 });    // IV
+    // D-pad: ii and common borrowed chords
+    setRole (ButtonId::DUp,    RoleChord       { 2 });    // ii
+    setRole (ButtonId::DRight, RoleBorrowed    { 4, 1 }); // iv (borrowed from minor)
+    setRole (ButtonId::DDown,  RoleBorrowed    { 6, 1 }); // bVI from minor
+    setRole (ButtonId::DLeft,  RoleBorrowed    { 7, 1 }); // bVII from minor
+    // Modifiers: sus extensions for pop feel
+    setRole (ButtonId::LB,     RoleExtension   { 2 });    // sus2
     setRole (ButtonId::RB,     RoleExtension   { 1 });    // sus4
     setRole (ButtonId::RT,     RoleStrumDown   {});
     setRole (ButtonId::LT,     RoleStrumUp     {});
@@ -35,18 +84,105 @@ void ButtonRoleMap::loadDefaultDiatonicRock()
     setRole (ButtonId::R3,     RoleOctaveShift { +1 });
 }
 
+void ButtonRoleMap::loadJazzVoicings()
+{
+    activePresetId = "jazz_voicings";
+    // Jazz: ii-V-I focus, all with 7ths by default
+    setRole (ButtonId::A,      RoleChord       { 1 });    // Imaj7
+    setRole (ButtonId::B,      RoleChord       { 5 });    // V7
+    setRole (ButtonId::X,      RoleChord       { 2 });    // ii7
+    setRole (ButtonId::Y,      RoleChord       { 6 });    // vi7
+    // D-pad: iii, IV, diminished, tritone sub
+    setRole (ButtonId::DUp,    RoleChord       { 3 });    // iii
+    setRole (ButtonId::DRight, RoleChord       { 4 });    // IV
+    setRole (ButtonId::DDown,  RoleChord       { 7 });    // vii dim
+    setRole (ButtonId::DLeft,  RoleBorrowed    { 2, 1 }); // ii from minor (dorian feel)
+    // Modifiers: 7th is the default, LB adds 9th, RB adds sus4
+    setRole (ButtonId::LB,     RoleExtension   { 0 });    // seventh (add on top)
+    setRole (ButtonId::RB,     RoleExtension   { 3 });    // add9
+    setRole (ButtonId::RT,     RoleStrumDown   {});
+    setRole (ButtonId::LT,     RoleStrumUp     {});
+    setRole (ButtonId::L3,     RoleOctaveShift { -1 });
+    setRole (ButtonId::R3,     RoleOctaveShift { +1 });
+}
+
+// ── Serialization ────────────────────────────────────────────────────────────
+
 juce::ValueTree ButtonRoleMap::toValueTree() const
 {
     juce::ValueTree tree ("ROLEMAP");
-    // TODO: iterate roles, serialize each as a child ValueTree node
+    tree.setProperty ("preset", juce::String (activePresetId), nullptr);
+
+    for (const auto& [btnInt, role] : roles)
+    {
+        juce::ValueTree node ("ROLE");
+        node.setProperty ("button", juce::String (buttonIdToString (static_cast<ButtonId>(btnInt))), nullptr);
+        node.setProperty ("type", juce::String (roleToString (role)), nullptr);
+
+        // Serialize role-specific attributes
+        std::visit ([&node] (auto&& r) {
+            using T = std::decay_t<decltype(r)>;
+            if constexpr (std::is_same_v<T, RoleChord>)
+            {
+                node.setProperty ("degree", r.degree, nullptr);
+                node.setProperty ("quality", r.qualityOverride, nullptr);
+            }
+            else if constexpr (std::is_same_v<T, RoleBorrowed>)
+            {
+                node.setProperty ("degree", r.degree, nullptr);
+                node.setProperty ("sourceScale", r.sourceScaleIdx, nullptr);
+            }
+            else if constexpr (std::is_same_v<T, RoleChromatic>)
+            {
+                node.setProperty ("rootMidi", r.rootMidi, nullptr);
+                node.setProperty ("quality", r.quality, nullptr);
+            }
+            else if constexpr (std::is_same_v<T, RoleInversion>)
+                node.setProperty ("n", r.n, nullptr);
+            else if constexpr (std::is_same_v<T, RoleExtension>)
+                node.setProperty ("extType", r.type, nullptr);
+            else if constexpr (std::is_same_v<T, RoleOctaveShift>)
+                node.setProperty ("delta", r.delta, nullptr);
+            else if constexpr (std::is_same_v<T, RoleKeyTranspose>)
+                node.setProperty ("semitones", r.semitones, nullptr);
+            // StrumDown, StrumUp, Mute have no attributes
+        }, role);
+
+        tree.appendChild (node, nullptr);
+    }
+
     return tree;
 }
 
 void ButtonRoleMap::fromValueTree (const juce::ValueTree& tree)
 {
-    // TODO: parse ROLEMAP children back to ButtonRole variants
-    juce::ignoreUnused (tree);
+    if (! tree.hasType ("ROLEMAP"))
+        return;
+
+    // Check for preset-based restore
+    auto presetProp = tree.getProperty ("preset", "").toString().toStdString();
+    if (! presetProp.empty())
+    {
+        loadPreset (presetProp);
+        return; // Factory preset overrides individual roles
+    }
+
+    roles.clear();
+    for (int i = 0; i < tree.getNumChildren(); ++i)
+    {
+        auto node = tree.getChild (i);
+        if (! node.hasType ("ROLE")) continue;
+
+        auto btnStr  = node.getProperty ("button", "").toString().toStdString();
+        auto typeStr = node.getProperty ("type", "").toString().toStdString();
+
+        auto btn  = stringToButtonId (btnStr);
+        auto role = stringToRole (typeStr, node);
+        setRole (btn, role);
+    }
 }
+
+// ── String Conversion ────────────────────────────────────────────────────────
 
 std::string ButtonRoleMap::buttonIdToString (ButtonId id)
 {
@@ -111,10 +247,26 @@ std::string ButtonRoleMap::roleToString (const ButtonRole& role)
     }, role);
 }
 
-ButtonRole ButtonRoleMap::stringToRole (const std::string& type, const juce::ValueTree& /*node*/)
+ButtonRole ButtonRoleMap::stringToRole (const std::string& type, const juce::ValueTree& node)
 {
-    // TODO: full deserialization — reads attributes from node
+    if (type == "Chord")
+        return RoleChord { static_cast<int>(node.getProperty("degree", 1)),
+                           static_cast<int>(node.getProperty("quality", -1)) };
+    if (type == "Borrowed")
+        return RoleBorrowed { static_cast<int>(node.getProperty("degree", 1)),
+                              static_cast<int>(node.getProperty("sourceScale", 1)) };
+    if (type == "Chromatic")
+        return RoleChromatic { static_cast<int>(node.getProperty("rootMidi", 60)),
+                               static_cast<int>(node.getProperty("quality", 0)) };
+    if (type == "Inversion")
+        return RoleInversion { static_cast<int>(node.getProperty("n", 0)) };
+    if (type == "Extension")
+        return RoleExtension { static_cast<int>(node.getProperty("extType", 0)) };
+    if (type == "OctaveShift")
+        return RoleOctaveShift { static_cast<int>(node.getProperty("delta", 0)) };
+    if (type == "KeyTranspose")
+        return RoleKeyTranspose { static_cast<int>(node.getProperty("semitones", 0)) };
     if (type == "StrumDown") return RoleStrumDown{};
     if (type == "StrumUp")   return RoleStrumUp{};
-    return RoleMute{}; // safe fallback
+    return RoleMute{};
 }

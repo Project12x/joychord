@@ -5,7 +5,7 @@ static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#",
 JoychordEditor::JoychordEditor (JoychordProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
-    setSize (480, 380);
+    setSize (480, 420);
 
     // Key dropdown
     keyLabel.setText ("Key", juce::dontSendNotification);
@@ -49,7 +49,22 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
     addAndMakeVisible (octaveBox);
 
-    // Gamepad controller index selector
+    // Preset dropdown
+    presetLabel.setText ("Preset", juce::dontSendNotification);
+    presetLabel.setJustificationType (juce::Justification::centredRight);
+    addAndMakeVisible (presetLabel);
+    auto presets = ButtonRoleMap::getFactoryPresets();
+    for (int i = 0; i < static_cast<int>(presets.size()); ++i)
+        presetBox.addItem (juce::String (presets[i].displayName), i + 1);
+    presetBox.setSelectedId (1, juce::dontSendNotification);
+    presetBox.onChange = [this, presets]() {
+        int idx = presetBox.getSelectedItemIndex();
+        if (idx >= 0 && idx < static_cast<int>(presets.size()))
+            processor.loadPreset (presets[idx].id);
+    };
+    addAndMakeVisible (presetBox);
+
+    // Gamepad controller index
     gamepadLabel.setText ("Gamepad", juce::dontSendNotification);
     gamepadLabel.setJustificationType (juce::Justification::centredRight);
     addAndMakeVisible (gamepadLabel);
@@ -75,7 +90,6 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     statusLabel.setColour (juce::Label::textColourId, juce::Colour (0xff808080));
     addAndMakeVisible (statusLabel);
 
-    // UI refresh at 30Hz
     startTimerHz (30);
 }
 
@@ -90,6 +104,12 @@ void JoychordEditor::timerCallback()
     btnB = processor.btnBState.load();
     btnX = processor.btnXState.load();
     btnY = processor.btnYState.load();
+    dUp = processor.dUpState.load();
+    dDown = processor.dDownState.load();
+    dLeft = processor.dLeftState.load();
+    dRight = processor.dRightState.load();
+    lb = processor.lbState.load();
+    rb = processor.rbState.load();
     connected = processor.gamepadConnected.load();
 
     auto name = processor.lastChordName;
@@ -105,7 +125,6 @@ void JoychordEditor::timerCallback()
 
 void JoychordEditor::paint (juce::Graphics& g)
 {
-    // Background
     g.fillAll (juce::Colour (0xff1a1a2e));
 
     // Title
@@ -113,35 +132,53 @@ void JoychordEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (20.0f));
     g.drawText ("Joychord", 0, 8, getWidth(), 28, juce::Justification::centred);
 
-    // Button indicators -- diamond layout mimicking Xbox face buttons
-    auto cx = getWidth() / 2;
-    auto cy = 290;
-    int r = 20;
-    int spacing = 30;
+    // ── Button indicators ──
 
-    auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col)
+    int r = 18;
+    int spacing = 26;
+
+    auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 18)
     {
         g.setColour (pressed ? col : col.withAlpha (0.2f));
-        g.fillEllipse ((float)(x - r), (float)(y - r), (float)(r * 2), (float)(r * 2));
+        g.fillEllipse ((float)(x - radius), (float)(y - radius), (float)(radius * 2), (float)(radius * 2));
         g.setColour (juce::Colours::white);
-        g.drawEllipse ((float)(x - r), (float)(y - r), (float)(r * 2), (float)(r * 2), 1.5f);
-        g.setFont (juce::FontOptions (14.0f));
-        g.drawText (label, x - r, y - r, r * 2, r * 2, juce::Justification::centred);
+        g.drawEllipse ((float)(x - radius), (float)(y - radius), (float)(radius * 2), (float)(radius * 2), 1.5f);
+        g.setFont (juce::FontOptions (12.0f));
+        g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
     };
 
-    // Xbox diamond: Y top, X left, B right, A bottom
-    drawBtn (cx,            cy - spacing, "Y",  btnY, juce::Colour (0xffccaa00)); // yellow
-    drawBtn (cx - spacing,  cy,           "X",  btnX, juce::Colour (0xff0066cc)); // blue
-    drawBtn (cx + spacing,  cy,           "B",  btnB, juce::Colour (0xffcc2200)); // red
-    drawBtn (cx,            cy + spacing, "A",  btnA, juce::Colour (0xff00aa44)); // green
+    // Face buttons (right side) -- Xbox diamond
+    int faceCx = getWidth() / 2 + 70;
+    int faceCy = 310;
+    drawBtn (faceCx,              faceCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
+    drawBtn (faceCx - spacing,    faceCy,           "X",  btnX, juce::Colour (0xff0066cc));
+    drawBtn (faceCx + spacing,    faceCy,           "B",  btnB, juce::Colour (0xffcc2200));
+    drawBtn (faceCx,              faceCy + spacing, "A",  btnA, juce::Colour (0xff00aa44));
 
-    // Degree labels next to buttons
-    g.setFont (juce::FontOptions (11.0f));
+    // D-pad (left side) -- cross layout
+    int dpadCx = getWidth() / 2 - 70;
+    int dpadCy = 310;
+    int ds = 22;
+    int dr = 14;
+    auto grey = juce::Colour (0xff666688);
+    drawBtn (dpadCx,       dpadCy - ds, "U",  dUp,    grey, dr);
+    drawBtn (dpadCx - ds,  dpadCy,      "L",  dLeft,  grey, dr);
+    drawBtn (dpadCx + ds,  dpadCy,      "R",  dRight, grey, dr);
+    drawBtn (dpadCx,       dpadCy + ds, "D",  dDown,  grey, dr);
+
+    // Shoulders (top of button area)
+    int shoulderY = 275;
+    drawBtn (dpadCx - 10, shoulderY, "LB", lb, juce::Colour (0xff886688), 14);
+    drawBtn (faceCx + 10, shoulderY, "RB", rb, juce::Colour (0xff886688), 14);
+
+    // Degree labels
+    g.setFont (juce::FontOptions (10.0f));
     g.setColour (juce::Colour (0xff909090));
-    g.drawText ("vi",  cx + r + 2,            cy - spacing - 8, 30, 16, juce::Justification::centredLeft);
-    g.drawText ("IV",  cx - spacing - r - 32, cy - 8,           30, 16, juce::Justification::centredRight);
-    g.drawText ("V",   cx + spacing + r + 2,  cy - 8,           30, 16, juce::Justification::centredLeft);
-    g.drawText ("I",   cx + r + 2,            cy + spacing - 8, 30, 16, juce::Justification::centredLeft);
+    // Face button degree labels
+    g.drawText ("vi",  faceCx + r + 2,            faceCy - spacing - 6, 25, 12, juce::Justification::centredLeft);
+    g.drawText ("IV",  faceCx - spacing - r - 27, faceCy - 6,          25, 12, juce::Justification::centredRight);
+    g.drawText ("V",   faceCx + spacing + r + 2,  faceCy - 6,          25, 12, juce::Justification::centredLeft);
+    g.drawText ("I",   faceCx + r + 2,            faceCy + spacing - 6, 25, 12, juce::Justification::centredLeft);
 }
 
 void JoychordEditor::resized()
@@ -149,36 +186,39 @@ void JoychordEditor::resized()
     auto area = getLocalBounds().reduced (16);
     area.removeFromTop (36); // title
 
-    auto labelW = 60;
+    auto labelW = 55;
     auto boxW = 100;
     auto gap = 12;
 
     // Row 1: Key + Scale
-    auto row = area.removeFromTop (28);
+    auto row = area.removeFromTop (26);
     keyLabel.setBounds   (row.removeFromLeft (labelW));
     keyBox.setBounds     (row.removeFromLeft (boxW));
     row.removeFromLeft (gap);
     scaleLabel.setBounds (row.removeFromLeft (labelW));
     scaleBox.setBounds   (row.removeFromLeft (boxW));
 
-    area.removeFromTop (8);
+    area.removeFromTop (6);
 
     // Row 2: Voicing + Octave
-    row = area.removeFromTop (28);
+    row = area.removeFromTop (26);
     voicingLabel.setBounds (row.removeFromLeft (labelW));
     voicingBox.setBounds   (row.removeFromLeft (boxW));
     row.removeFromLeft (gap);
     octaveLabel.setBounds (row.removeFromLeft (labelW));
     octaveBox.setBounds   (row.removeFromLeft (boxW));
 
-    area.removeFromTop (8);
+    area.removeFromTop (6);
 
-    // Row 3: Gamepad setup
-    row = area.removeFromTop (28);
+    // Row 3: Preset + Gamepad
+    row = area.removeFromTop (26);
+    presetLabel.setBounds     (row.removeFromLeft (labelW));
+    presetBox.setBounds       (row.removeFromLeft (boxW));
+    row.removeFromLeft (gap);
     gamepadLabel.setBounds    (row.removeFromLeft (labelW));
-    gamepadIndexBox.setBounds (row.removeFromLeft (140));
+    gamepadIndexBox.setBounds (row.removeFromLeft (boxW));
 
-    area.removeFromTop (16);
+    area.removeFromTop (12);
 
     // Chord display
     chordLabel.setBounds (area.removeFromTop (50));

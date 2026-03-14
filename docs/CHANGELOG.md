@@ -11,6 +11,15 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ### Added
 
+- **Phase 3: Button Role System + Presets**
+- ButtonRole variant dispatch: all 16 buttons dispatch via `std::visit` (replaces hardcoded map)
+- Two-phase processBlock: modifiers (extension/octave/key) processed first, then chord producers
+- Edge detection via `prevGamepadState` for octave shift (L3/R3) and key transpose
+- Extension modifiers (LB=7th, RB=sus4) held-while-pressed, apply to all active chords
+- D-pad mapped to degrees ii, iii, vii + borrowed bVII in Diatonic Rock preset
+- 3 factory presets: Diatonic Rock, Pop Ballad, Jazz Voicings -- selectable from UI dropdown
+- Full ValueTree serialization/deserialization for all 10 ButtonRole types
+- UI: preset dropdown, D-pad cross indicators, LB/RB shoulder indicators
 - **Phase 2.5: Playable Checkpoint** (v0.2.0)
 - `SimpleVoice`: sine wave + ADSR SynthesiserVoice (12-voice polyphony)
 - processBlock wiring: XInput gamepad -> button-to-degree map (A=I, B=V, X=IV, Y=vi) -> ChordEngine with Dijkstra auto-voicing -> MidiBuffer -> juce::Synthesiser audio output

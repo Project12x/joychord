@@ -7,7 +7,6 @@ JoychordProcessor::JoychordProcessor()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "JOYCHORD", createParameterLayout())
 {
-    // Add SimpleSound + 12 SimpleVoice instances
     synth.addSound (new SimpleSound());
     for (int i = 0; i < 12; ++i)
         synth.addVoice (new SimpleVoice());
@@ -39,14 +38,12 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*
 {
     synth.setCurrentPlaybackSampleRate (sampleRate);
 
-    // Init ADSR on all voices
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
         if (auto* sv = dynamic_cast<SimpleVoice*>(synth.getVoice(i)))
             sv->prepareToPlay (sampleRate);
     }
 
-    // Start gamepad polling timer (~100Hz)
     startTimerHz (100);
 }
 
@@ -62,6 +59,35 @@ void JoychordProcessor::timerCallback()
 
     const juce::SpinLock::ScopedLockType lock (gamepadLock);
     latestGamepadState = state;
+}
+
+void JoychordProcessor::loadPreset (const std::string& presetId)
+{
+    roleMap.loadPreset (presetId);
+}
+
+bool JoychordProcessor::getButtonState (const GamepadState& gp, ButtonId btn)
+{
+    switch (btn)
+    {
+        case ButtonId::A:      return gp.btnA;
+        case ButtonId::B:      return gp.btnB;
+        case ButtonId::X:      return gp.btnX;
+        case ButtonId::Y:      return gp.btnY;
+        case ButtonId::DUp:    return gp.dUp;
+        case ButtonId::DDown:  return gp.dDown;
+        case ButtonId::DLeft:  return gp.dLeft;
+        case ButtonId::DRight: return gp.dRight;
+        case ButtonId::LB:     return gp.lb;
+        case ButtonId::RB:     return gp.rb;
+        case ButtonId::LT:     return gp.lt > 0.5f;
+        case ButtonId::RT:     return gp.rt > 0.5f;
+        case ButtonId::L3:     return gp.l3;
+        case ButtonId::R3:     return gp.r3;
+        case ButtonId::Start:  return gp.start;
+        case ButtonId::Back:   return gp.back;
+        default:               return false;
+    }
 }
 
 void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -82,48 +108,127 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     btnBState.store (gp.btnB);
     btnXState.store (gp.btnX);
     btnYState.store (gp.btnY);
+    dUpState.store (gp.dUp);
+    dDownState.store (gp.dDown);
+    dLeftState.store (gp.dLeft);
+    dRightState.store (gp.dRight);
+    lbState.store (gp.lb);
+    rbState.store (gp.rb);
 
     // Sync APVTS params to ChordEngine
     int keyVal   = static_cast<int> (*apvts.getRawParameterValue ("key"));
     int scaleIdx = static_cast<int> (*apvts.getRawParameterValue ("scale"));
     int voicIdx  = static_cast<int> (*apvts.getRawParameterValue ("voicing"));
-    int octave   = static_cast<int> (*apvts.getRawParameterValue ("octave"));
+    int baseOctave = static_cast<int> (*apvts.getRawParameterValue ("octave"));
 
     chordEngine.setKey (keyVal);
     chordEngine.setScale (static_cast<ScaleMode> (scaleIdx));
     chordEngine.setVoicing (static_cast<VoicingStyle> (voicIdx));
-    chordEngine.setOctave (octave);
 
-    // Determine which degrees are active from button state
-    std::vector<int> requestedDegrees;
-    if (gp.btnA) requestedDegrees.push_back (kDegreeA);
-    if (gp.btnB) requestedDegrees.push_back (kDegreeB);
-    if (gp.btnX) requestedDegrees.push_back (kDegreeX);
-    if (gp.btnY) requestedDegrees.push_back (kDegreeY);
+    // ── Phase 1: Process modifier roles (extension, octave shift, key transpose) ──
+    // These modify engine state but don't produce notes themselves.
 
-    // Resolve all requested chords
+    activeExtension = 0; // reset each block; held modifiers re-apply
+
+    // All 16 buttons iterated
+    static constexpr ButtonId allButtons[] = {
+        ButtonId::A, ButtonId::B, ButtonId::X, ButtonId::Y,
+        ButtonId::DUp, ButtonId::DDown, ButtonId::DLeft, ButtonId::DRight,
+        ButtonId::LB, ButtonId::RB, ButtonId::LT, ButtonId::RT,
+        ButtonId::L3, ButtonId::R3, ButtonId::Start, ButtonId::Back
+    };
+
+    for (auto btn : allButtons)
+    {
+        bool pressed = getButtonState (gp, btn);
+        bool wasPressed = getButtonState (prevGamepadState, btn);
+        const auto& role = roleMap.getRole (btn);
+
+        std::visit ([&](auto&& r) {
+            using T = std::decay_t<decltype(r)>;
+
+            if constexpr (std::is_same_v<T, RoleExtension>)
+            {
+                // Held modifier: active while button is down
+                if (pressed)
+                    activeExtension = r.type + 1; // +1 because ChordEngine uses 1=seventh, 2=sus4, etc.
+            }
+            else if constexpr (std::is_same_v<T, RoleOctaveShift>)
+            {
+                // Edge-triggered: shift on press, not hold
+                if (pressed && !wasPressed)
+                {
+                    octaveOffset += r.delta;
+                    octaveOffset = std::clamp (octaveOffset, -2, 2);
+                }
+            }
+            else if constexpr (std::is_same_v<T, RoleKeyTranspose>)
+            {
+                if (pressed && !wasPressed)
+                {
+                    int newKey = (keyVal + r.semitones + 12) % 12;
+                    if (auto* param = apvts.getParameter ("key"))
+                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float>(newKey)));
+                }
+            }
+            // Other roles handled in Phase 2 below
+        }, role);
+    }
+
+    // Apply octave offset
+    chordEngine.setOctave (baseOctave + octaveOffset);
+
+    // ── Phase 2: Process chord-producing roles ──
+
     std::vector<int> wantedNotes;
     juce::String chordDisplay;
 
-    for (int deg : requestedDegrees)
+    for (auto btn : allButtons)
     {
-        auto result = chordEngine.resolve (deg, 0, -1); // auto-voicing via Dijkstra
-        for (int n : result.midiNotes)
-            wantedNotes.push_back (n);
+        bool pressed = getButtonState (gp, btn);
+        if (!pressed) continue;
 
-        if (chordDisplay.isNotEmpty())
-            chordDisplay += " + ";
-        chordDisplay += juce::String (result.name);
+        const auto& role = roleMap.getRole (btn);
+
+        std::visit ([&](auto&& r) {
+            using T = std::decay_t<decltype(r)>;
+            ChordResult result;
+
+            if constexpr (std::is_same_v<T, RoleChord>)
+            {
+                result = chordEngine.resolve (r.degree, activeExtension, -1); // Dijkstra auto-voicing
+            }
+            else if constexpr (std::is_same_v<T, RoleBorrowed>)
+            {
+                result = chordEngine.resolveBorrowed (r.degree,
+                    static_cast<ScaleMode>(r.sourceScaleIdx), activeExtension, -1);
+            }
+            else if constexpr (std::is_same_v<T, RoleChromatic>)
+            {
+                result = chordEngine.resolveChromatic (r.rootMidi, r.quality);
+            }
+            else
+            {
+                return; // modifiers/strum/mute don't produce notes
+            }
+
+            for (int n : result.midiNotes)
+                wantedNotes.push_back (n);
+
+            if (chordDisplay.isNotEmpty())
+                chordDisplay += " + ";
+            chordDisplay += juce::String (result.name);
+        }, role);
     }
 
-    // Compute note-off: notes in activeNotes but not in wantedNotes
+    // ── Phase 3: Note diff -> MIDI events ──
+
     for (int note : activeNotes)
     {
         if (std::find (wantedNotes.begin(), wantedNotes.end(), note) == wantedNotes.end())
             midi.addEvent (juce::MidiMessage::noteOff (1, note), 0);
     }
 
-    // Compute note-on: notes in wantedNotes but not in activeNotes
     for (int note : wantedNotes)
     {
         if (std::find (activeNotes.begin(), activeNotes.end(), note) == activeNotes.end())
@@ -132,7 +237,7 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     activeNotes = wantedNotes;
 
-    // Update display state for UI
+    // Update display state
     if (wantedNotes.empty())
     {
         currentChordRoot.store (-1);
@@ -144,11 +249,13 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         lastChordName = chordDisplay;
     }
 
-    // Commit voicing for Dijkstra scorer
     if (! wantedNotes.empty())
         chordEngine.commitVoicing (wantedNotes);
 
-    // Render synth audio from MIDI
+    // Save previous state for edge detection
+    prevGamepadState = gp;
+
+    // Render synth audio
     synth.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
 }
 

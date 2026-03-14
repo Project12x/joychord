@@ -21,6 +21,12 @@ private:
     juce::ComboBox keyBox, scaleBox, voicingBox, octaveBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> keyAttach, scaleAttach, voicingAttach;
 
+    // Preset selector
+    juce::ComboBox presetBox;
+
+    // Gamepad setup
+    juce::ComboBox gamepadIndexBox;
+
     // Chord display
     juce::Label chordLabel;
 
@@ -28,14 +34,13 @@ private:
     juce::Label statusLabel;
 
     // Section labels
-    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, gamepadLabel;
+    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel;
 
-    // Button state (painted directly)
+    // Button state
     bool btnA = false, btnB = false, btnX = false, btnY = false;
+    bool dUp = false, dDown = false, dLeft = false, dRight = false;
+    bool lb = false, rb = false;
     bool connected = false;
-
-    // Gamepad setup
-    juce::ComboBox gamepadIndexBox;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };
