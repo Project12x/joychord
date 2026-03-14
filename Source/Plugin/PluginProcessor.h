@@ -4,12 +4,17 @@
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
+#include "Synth/SimpleVoice.h"
 #include "Engine/ModulationRouter.h"
 #include "Input/XInputGamepad.h"
+#include <set>
 
 #if JOYCHORD_HAS_SFIZZ
 #include <sfizz.hpp>
 #endif
+
+// Forward declare TinySoundFont
+struct tsf;
 
 class JoychordProcessor : public juce::AudioProcessor,
                           private juce::Timer
@@ -58,6 +63,8 @@ public:
     void loadPreset (const std::string& presetId);
     const std::string& currentPresetId() const { return roleMap.currentPresetId(); }
 
+    void loadCustomSfz (const juce::String& path);
+
     ButtonRoleMap& getRoleMap() { return roleMap; }
 
 private:
@@ -74,12 +81,22 @@ private:
     ModulationRouter modulationRouter;
     XInputGamepad    gamepad;
 
+    // Synth Engines
+    juce::Synthesiser analogSynth;
 #if JOYCHORD_HAS_SFIZZ
-    std::unique_ptr<sfz::Sfizz> synth;
+    std::unique_ptr<sfz::Sfizz> sfzSynth;
+    juce::String currentSfzPath;
 #endif
 
+    // TinySoundFont for .sf2
+    tsf* tsfSynth = nullptr;
+    std::vector<float> tsfInterleavedBuffer;
+
     // Active MIDI notes for proper note-off tracking
-    std::vector<int> activeNotes;
+    std::set<int> activeNotes;
+
+    // Tracker for dynamic polyphony gain (Equal Power: 1 / sqrt(N))
+    float currentPolyGain = 1.0f;
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;

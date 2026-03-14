@@ -1,45 +1,35 @@
 #pragma once
+#include <juce_core/juce_core.h>
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <vector>
-#include <functional>
-#include "ChordEngine.h"
 
-// Callback types for MIDI events
-using NoteOnCallback  = std::function<void(int midiNote, float velocity)>;
-using NoteOffCallback = std::function<void(int midiNote)>;
+struct PendingNote {
+    int noteNumber;
+    float velocity;
+    double samplesUntilPlay; // Countdown timer in samples
+};
 
 class StrumEngine
 {
 public:
     StrumEngine() = default;
 
-    void setCallbacks (NoteOnCallback onNote, NoteOffCallback offNote);
+    // Set the speed of the strum in milliseconds (delay between each consecutive note)
+    void setStrumSpeedMs (float ms) { strumSpeedMs = std::max(0.0f, ms); }
 
-    // Called when a chord button is pressed (immediate sound)
-    void chordPressed  (const ChordResult& chord);
+    // Enqueue a set of notes to be strummed
+    void triggerNotes (const std::vector<int>& notes, float velocity, double sampleRate);
 
-    // Called when a chord button is released
-    void chordReleased (const ChordResult& chord);
+    // Cancel a specific note if it's in the pending queue (e.g. if released before it played)
+    void cancelNote (int noteNumber);
 
-    // Called on strum-down (RT) or strum-up (LT) trigger
-    // velocity in [0, 1] from analog trigger depth
-    // direction: +1 = down (low-to-high), -1 = up (high-to-low)
-    void strum (float velocity, int direction = 1);
+    // Clear all pending notes
+    void cancelAllNotes();
 
-    // Mute all active notes
-    void mute();
-
-    // Note spread between strum notes, in milliseconds
-    void setStrumSpreadMs (float ms) { strumSpreadMs = ms; }
+    // Process the queue, advancing time by numSamples and adding due NoteOns into the midiBuffer
+    void process (juce::MidiBuffer& midiBuffer, int numSamples);
 
 private:
-    NoteOnCallback  noteOn;
-    NoteOffCallback noteOff;
-
-    ChordResult activeChord;
-    ChordResult previousChord;
-
-    float strumSpreadMs = 10.0f;
-
-    // Computes common tones between two chords (for legato slide)
-    std::vector<int> commonTones (const ChordResult& a, const ChordResult& b) const;
+    float strumSpeedMs = 0.0f;
+    std::vector<PendingNote> pendingNotes;
 };

@@ -18,8 +18,13 @@ private:
     JoychordProcessor& processor;
 
     // APVTS-attached controls
-    juce::ComboBox keyBox, scaleBox, voicingBox, octaveBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> keyAttach, scaleAttach, voicingAttach;
+    juce::ComboBox keyBox, scaleBox, voicingBox, octaveBox, synthModeBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> keyAttach, scaleAttach, voicingAttach, synthModeAttach;
+
+    juce::Slider strumSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> strumAttach;
+
+    juce::TextButton loadSfzBtn { "Load SFZ..." };
 
     // Preset selector
     juce::ComboBox presetBox;
@@ -34,7 +39,7 @@ private:
     juce::Label statusLabel;
 
     // Section labels
-    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel;
+    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel, synthModeLabel, strumLabel;
 
     // Button state
     bool btnA = false, btnB = false, btnX = false, btnY = false;

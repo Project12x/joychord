@@ -1,26 +1,58 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "Synth/SimpleVoice.h"
+#include <spdlog/spdlog.h>
+#include <tsf.h>
 
 JoychordProcessor::JoychordProcessor()
     : AudioProcessor (BusesProperties()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "JOYCHORD", createParameterLayout())
 {
+    // Add a couple of voices to the analog synth
+    analogSynth.addSound (new SimpleSound());
+    for (int i = 0; i < 4; ++i)
+        analogSynth.addVoice (new SimpleVoice());
+
 #if JOYCHORD_HAS_SFIZZ
-    synth = std::make_unique<sfz::Sfizz>();
+    sfzSynth = std::make_unique<sfz::Sfizz>();
+#endif
     
-    // Load default asset relative to app
+    // Load default asset relative to app (will act as the PIANO tier for now)
     auto appDir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
+    auto sf2File = appDir.getChildFile ("../assets/default_piano.sf2");
+    if (!sf2File.existsAsFile()) sf2File = appDir.getChildFile ("../assets/TimGM6mb.sf2");
+    if (!sf2File.existsAsFile()) sf2File = appDir.getChildFile ("../assets/UprightPianoKW-small-20190703.sf2");
+
+    if (sf2File.existsAsFile())
+    {
+        tsfSynth = tsf_load_filename(sf2File.getFullPathName().toUTF8().getAddress());
+        if (tsfSynth)
+            spdlog::info ("TSF successfully loaded default SF2 asset: {}", sf2File.getFullPathName().toStdString());
+        else
+            spdlog::error ("TSF failed to load default SF2 asset: {}", sf2File.getFullPathName().toStdString());
+    }
+    else
+    {
+        spdlog::warn ("TSF could not find any default .sf2 asset to load in assets folder.");
+    }
+
+#if JOYCHORD_HAS_SFIZZ
     auto sfzFile = appDir.getChildFile ("../assets/basic_sine.sfz");
     if (sfzFile.existsAsFile())
-        synth->loadSfzFile (sfzFile.getFullPathName().toStdString());
+    {
+        if (sfzSynth->loadSfzFile (sfzFile.getFullPathName().toStdString()))
+            spdlog::info ("Sfizz successfully loaded default SFZ asset: {}", sfzFile.getFullPathName().toStdString());
+        else
+            spdlog::error ("Sfizz failed to load default SFZ asset: {}", sfzFile.getFullPathName().toStdString());
+    }
 #endif
 }
 
 JoychordProcessor::~JoychordProcessor()
 {
     stopTimer();
+    if (tsfSynth) tsf_close(tsfSynth);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createParameterLayout()
@@ -28,12 +60,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
     layout.add (std::make_unique<juce::AudioParameterInt>  ("key",           "Key",            0, 11, 0));
+    layout.add (std::make_unique<juce::AudioParameterFloat>("strumSpeed",    "Strum Speed",    0.0f, 150.0f, 10.0f));
     layout.add (std::make_unique<juce::AudioParameterChoice>("scale",         "Scale",
         juce::StringArray { "Major", "Minor", "Dorian", "Mixolydian", "Phrygian", "Lydian", "Whole Tone" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice>("voicing",       "Voicing",
         juce::StringArray { "Close", "Drop-2" }, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice>("outputMode",    "Output Mode",
-        juce::StringArray { "Synth", "MIDI" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterChoice>("synthMode",     "Synth Mode",
+        juce::StringArray { "MIDI", "SYNTH", "PIANO", "SFZ" }, 1)); // Default to SYNTH
     layout.add (std::make_unique<juce::AudioParameterInt>  ("midiChannel",    "MIDI Channel",   1, 16, 1));
     layout.add (std::make_unique<juce::AudioParameterInt>  ("octave",         "Octave",         2, 6, 4));
 
@@ -42,13 +75,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
 
 void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-#if JOYCHORD_HAS_SFIZZ
-    if (synth != nullptr)
+    analogSynth.setCurrentPlaybackSampleRate (sampleRate);
+    for (int i = 0; i < analogSynth.getNumVoices(); ++i)
     {
-        synth->setSampleRate (static_cast<float> (sampleRate));
-        synth->setSamplesPerBlock (samplesPerBlock);
+        if (auto voice = dynamic_cast<SimpleVoice*> (analogSynth.getVoice (i)))
+            voice->prepareToPlay (sampleRate);
+    }
+
+#if JOYCHORD_HAS_SFIZZ
+    if (sfzSynth != nullptr)
+    {
+        sfzSynth->setSampleRate (static_cast<float> (sampleRate));
+        sfzSynth->setSamplesPerBlock (samplesPerBlock);
     }
 #endif
+
+    if (tsfSynth)
+    {
+        tsf_set_output (tsfSynth, TSF_STEREO_INTERLEAVED, static_cast<int> (sampleRate), 0);
+    }
+    tsfInterleavedBuffer.resize (samplesPerBlock * 2);
 
     startTimerHz (100);
 }
@@ -70,6 +116,37 @@ void JoychordProcessor::timerCallback()
 void JoychordProcessor::loadPreset (const std::string& presetId)
 {
     roleMap.loadPreset (presetId);
+}
+
+void JoychordProcessor::loadCustomSfz (const juce::String& path)
+{
+    if (path.endsWithIgnoreCase (".sf2"))
+    {
+        if (tsfSynth) tsf_close (tsfSynth);
+        tsfSynth = tsf_load_filename (path.toUTF8().getAddress());
+        if (tsfSynth)
+        {
+            tsf_set_output (tsfSynth, TSF_STEREO_INTERLEAVED, static_cast<int> (getSampleRate()), 0);
+            spdlog::info ("TSF successfully loaded custom SF2: {}", path.toStdString());
+        }
+        else
+        {
+            spdlog::error ("TSF failed to load custom SF2: {}", path.toStdString());
+        }
+    }
+    else
+    {
+#if JOYCHORD_HAS_SFIZZ
+        if (sfzSynth != nullptr)
+        {
+            currentSfzPath = path;
+            if (sfzSynth->loadSfzFile (path.toStdString()))
+                spdlog::info ("Sfizz successfully loaded custom SFZ: {}", path.toStdString());
+            else
+                spdlog::error ("Sfizz failed to load custom SFZ: {}", path.toStdString());
+        }
+#endif
+    }
 }
 
 bool JoychordProcessor::getButtonState (const GamepadState& gp, ButtonId btn)
@@ -134,6 +211,9 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // ── Phase 1: Process modifier roles (extension, octave shift, key transpose) ──
     // These modify engine state but don't produce notes themselves.
 
+    float strumSpeedMs = *apvts.getRawParameterValue ("strumSpeed");
+    strumEngine.setStrumSpeedMs (strumSpeedMs);
+
     activeExtension = 0; // reset each block; held modifiers re-apply
 
     // All 16 buttons iterated
@@ -186,7 +266,7 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     // ── Phase 2: Process chord-producing roles ──
 
-    std::vector<int> wantedNotes;
+    std::set<int> wantedNotes;
     juce::String chordDisplay;
 
     for (auto btn : allButtons)
@@ -200,45 +280,70 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             using T = std::decay_t<decltype(r)>;
             ChordResult result;
 
+            bool producedNotes = false;
+
             if constexpr (std::is_same_v<T, RoleChord>)
             {
                 result = chordEngine.resolve (r.degree, activeExtension, -1); // Dijkstra auto-voicing
+                producedNotes = true;
             }
             else if constexpr (std::is_same_v<T, RoleBorrowed>)
             {
                 result = chordEngine.resolveBorrowed (r.degree,
                     static_cast<ScaleMode>(r.sourceScaleIdx), activeExtension, -1);
+                producedNotes = true;
             }
             else if constexpr (std::is_same_v<T, RoleChromatic>)
             {
                 result = chordEngine.resolveChromatic (r.rootMidi, r.quality);
+                producedNotes = true;
             }
-            else
+
+            if (producedNotes)
             {
-                return; // modifiers/strum/mute don't produce notes
+                for (int n : result.midiNotes)
+                {
+                    wantedNotes.insert (n);
+                    if (n > 96)
+                        spdlog::warn ("GHOST? ChordEngine produced high note: {} (name: {})", n, result.name);
+                }
+
+                if (chordDisplay.isNotEmpty())
+                    chordDisplay += " + ";
+                chordDisplay += juce::String (result.name);
             }
-
-            for (int n : result.midiNotes)
-                wantedNotes.push_back (n);
-
-            if (chordDisplay.isNotEmpty())
-                chordDisplay += " + ";
-            chordDisplay += juce::String (result.name);
         }, role);
     }
 
     // ── Phase 3: Note diff -> MIDI events ──
 
-    for (int note : activeNotes)
+    std::vector<int> notesToTurnOff;
+    std::set_difference (activeNotes.begin(), activeNotes.end(),
+                         wantedNotes.begin(), wantedNotes.end(),
+                         std::back_inserter (notesToTurnOff));
+
+    for (int note : notesToTurnOff)
     {
-        if (std::find (wantedNotes.begin(), wantedNotes.end(), note) == wantedNotes.end())
-            midi.addEvent (juce::MidiMessage::noteOff (1, note), 0);
+        spdlog::debug ("NoteOff: {}", note);
+        midi.addEvent (juce::MidiMessage::noteOff (1, note, 0.0f), 0);
+        strumEngine.cancelNote (note); // Remove from pending queue if not yet fired
     }
 
-    for (int note : wantedNotes)
+    std::vector<int> notesToTurnOn;
+    std::set_difference (wantedNotes.begin(), wantedNotes.end(),
+                         activeNotes.begin(), activeNotes.end(),
+                         std::back_inserter (notesToTurnOn));
+
+    for (int note : notesToTurnOn)
+        spdlog::debug ("NoteOn queued: {}{}", note, note > 96 ? " *** GHOST CANDIDATE ***" : "");
+
+    if (!notesToTurnOn.empty())
+        strumEngine.triggerNotes (notesToTurnOn, 0.8f, getSampleRate());
+
+    if (!notesToTurnOn.empty() || !notesToTurnOff.empty())
     {
-        if (std::find (activeNotes.begin(), activeNotes.end(), note) == activeNotes.end())
-            midi.addEvent (juce::MidiMessage::noteOn (1, note, 0.8f), 0);
+        spdlog::debug ("ActiveNotes prev: {}, TurnOn: {}, TurnOff: {}, ActiveNotes next: {}", 
+            activeNotes.size(), notesToTurnOn.size(), notesToTurnOff.size(), wantedNotes.size());
     }
 
     activeNotes = wantedNotes;
@@ -251,43 +356,130 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     }
     else
     {
-        currentChordRoot.store (wantedNotes.front());
+        currentChordRoot.store (*wantedNotes.begin());
         lastChordName = chordDisplay;
     }
 
     if (! wantedNotes.empty())
-        chordEngine.commitVoicing (wantedNotes);
+    {
+        std::vector<int> vNotes (wantedNotes.begin(), wantedNotes.end());
+        chordEngine.commitVoicing (vNotes);
+    }
 
     // Save previous state for edge detection
     prevGamepadState = gp;
 
-    // Render synth audio
-#if JOYCHORD_HAS_SFIZZ
-    if (synth != nullptr)
-    {
-        for (const auto meta : midi)
-        {
-            auto msg = meta.getMessage();
-            int time = meta.samplePosition;
+    // Process strum queue
+    strumEngine.process (midi, buffer.getNumSamples());
 
-            if (msg.isNoteOn())
-                synth->hdNoteOn (time, msg.getNoteNumber(), msg.getFloatVelocity());
-            else if (msg.isNoteOff())
-                synth->hdNoteOff (time, msg.getNoteNumber(), msg.getFloatVelocity());
-            else if (msg.isPitchWheel())
-                synth->pitchWheel (time, msg.getPitchWheelValue());
-            else if (msg.isController())
-                synth->cc (time, msg.getControllerNumber(), msg.getControllerValue());
+    // ── Phase 4: Audio Rendering ──
+
+    int activeSynthMode = static_cast<int> (*apvts.getRawParameterValue ("synthMode"));
+    // 0 = MIDI, 1 = SYNTH, 2 = PIANO, 3 = SFZ
+
+    if (activeSynthMode == 1)
+    {
+        analogSynth.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
+    }
+    else if (activeSynthMode == 2 || activeSynthMode == 3)
+    {
+        bool useTsf = false;
+        if (tsfSynth)
+        {
+            // If piano mode, prefer TSF. If SFZ mode, check if we loaded a .sf2 file into TSF recently.
+            if (activeSynthMode == 2 || currentSfzPath.endsWithIgnoreCase (".sf2"))
+                useTsf = true;
         }
 
-        int numStereoOutputs = buffer.getNumChannels() == 2 ? 1 : 0; 
-        if (numStereoOutputs == 1)
+        if (useTsf)
         {
-            float* ptrs[2] = { buffer.getWritePointer(0), buffer.getWritePointer(1) };
-            synth->renderBlock (ptrs, buffer.getNumSamples(), numStereoOutputs);
+            for (const auto meta : midi)
+            {
+                auto msg = meta.getMessage();
+                if (msg.isNoteOn())
+                {
+                    spdlog::trace ("TSF NoteOn: {} vel: {:.2f}", msg.getNoteNumber(), msg.getFloatVelocity());
+                    tsf_note_on (tsfSynth, 0, msg.getNoteNumber(), msg.getFloatVelocity());
+                }
+                else if (msg.isNoteOff())
+                {
+                    spdlog::trace ("TSF NoteOff: {} vel: {:.2f}", msg.getNoteNumber(), msg.getFloatVelocity());
+                    tsf_note_off (tsfSynth, 0, msg.getNoteNumber());
+                }
+                else if (msg.isPitchWheel())
+                    tsf_channel_set_pitchwheel (tsfSynth, 0, msg.getPitchWheelValue());
+                else if (msg.isController())
+                    tsf_channel_midi_control (tsfSynth, 0, msg.getControllerNumber(), msg.getControllerValue());
+            }
+
+            int numStereoOutputs = buffer.getNumChannels() == 2 ? 1 : 0; 
+            if (numStereoOutputs == 1)
+            {
+                // Ensure temporary buffer is large enough (could have changed if host passes larger buffer than prepareToPlay)
+                if (tsfInterleavedBuffer.size() < (size_t)buffer.getNumSamples() * 2)
+                    tsfInterleavedBuffer.resize (buffer.getNumSamples() * 2);
+
+                tsf_render_float (tsfSynth, tsfInterleavedBuffer.data(), buffer.getNumSamples(), 0);
+
+                // Deinterleave the buffer directly into JUCE's discrete mono-channel buffers
+                const float* src = tsfInterleavedBuffer.data();
+                float* dstL = buffer.getWritePointer(0);
+                float* dstR = buffer.getWritePointer(1);
+                for (int i = 0; i < buffer.getNumSamples(); ++i)
+                {
+                    dstL[i] = *src++;
+                    dstR[i] = *src++;
+                }
+            }
+        }
+        else
+        {
+#if JOYCHORD_HAS_SFIZZ
+            if (sfzSynth != nullptr)
+            {
+                for (const auto meta : midi)
+                {
+                    auto msg = meta.getMessage();
+                    int time = meta.samplePosition;
+
+                    if (msg.isNoteOn())
+                    {
+                        spdlog::trace ("SFZ NoteOn: {} vel: {:.2f} time: {}", msg.getNoteNumber(), msg.getFloatVelocity(), time);
+                        sfzSynth->hdNoteOn (time, msg.getNoteNumber(), msg.getFloatVelocity());
+                    }
+                    else if (msg.isNoteOff())
+                    {
+                        spdlog::trace ("SFZ NoteOff: {} vel: {:.2f} time: {}", msg.getNoteNumber(), msg.getFloatVelocity(), time);
+                        sfzSynth->hdNoteOff (time, msg.getNoteNumber(), msg.getFloatVelocity());
+                    }
+                    else if (msg.isPitchWheel())
+                        sfzSynth->pitchWheel (time, msg.getPitchWheelValue());
+                    else if (msg.isController())
+                        sfzSynth->cc (time, msg.getControllerNumber(), msg.getControllerValue());
+                }
+
+                int numStereoOutputs = buffer.getNumChannels() == 2 ? 1 : 0; 
+                if (numStereoOutputs == 1)
+                {
+                    float* ptrs[2] = { buffer.getWritePointer(0), buffer.getWritePointer(1) };
+                    sfzSynth->renderBlock (ptrs, buffer.getNumSamples(), numStereoOutputs);
+                }
+            }
+#endif
         }
     }
-#endif
+    // If activeSynthMode == 0 (MIDI), buffer remains clear.
+
+    // Apply dynamic equal-power polyphony gain scaling: 0.5 / sqrt(N)
+    // We use a base multiplier of 0.5f (-6dB) to provide permanent headroom
+    // for all transient sounds, even when playing only 1 note.
+    float targetPolyGain = 0.5f;
+    if (! activeNotes.empty())
+        targetPolyGain = 0.5f / std::sqrt (static_cast<float> (activeNotes.size()));
+
+    // Prevent snapping by ramping gain smoothly across the block
+    buffer.applyGainRamp (0, buffer.getNumSamples(), currentPolyGain, targetPolyGain);
+    currentPolyGain = targetPolyGain;
 }
 
 juce::AudioProcessorEditor* JoychordProcessor::createEditor()

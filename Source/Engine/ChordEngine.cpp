@@ -149,6 +149,33 @@ std::vector<int> ChordEngine::buildChord (int rootMidi, const std::vector<int>& 
         }
     }
 
+    // Range clamp: keep all notes within a playable range [36, 84] (C2 - C6)
+    // Transpose the entire chord by octaves to fit within bounds.
+    if (!notes.empty())
+    {
+        std::sort(notes.begin(), notes.end());
+
+        // If highest note is too high, bring the whole chord down
+        while (notes.back() > 84 && notes.front() > 36)
+        {
+            for (auto& n : notes)
+                n -= 12;
+        }
+
+        // If lowest note is too low, bring the whole chord up
+        while (notes.front() < 36 && notes.back() < 84)
+        {
+            for (auto& n : notes)
+                n += 12;
+        }
+
+        // Final safety: remove any notes still outside 0-127
+        notes.erase(
+            std::remove_if(notes.begin(), notes.end(),
+                [](int n) { return n < 0 || n > 127; }),
+            notes.end());
+    }
+
     return notes;
 }
 
@@ -209,7 +236,7 @@ void ChordEngine::commitVoicing (const std::vector<int>& notes)
     previousNotes = notes;
 }
 
-int ChordEngine::scoreVoicing (const std::vector<int>& candidate) const
+int ChordEngine::scoreVoicing (const std::vector<int>& candidate, int rootMidi) const
 {
     if (previousNotes.empty())
         return 0; // no previous chord, all voicings equally good
@@ -223,6 +250,30 @@ int ChordEngine::scoreVoicing (const std::vector<int>& candidate) const
             minDist = std::min(minDist, std::abs(cn - pn));
         totalDistance += minDist;
     }
+
+    // Octave gravity penalty
+    // Calculate the center of the candidate chord
+    if (!candidate.empty())
+    {
+        float center = 0;
+        for (int cn : candidate)
+            center += cn;
+        center /= candidate.size();
+
+        // Calculate the ideal "home" center based on the current base octave and key
+        float homeCenter = (octave + 1) * 12 + key + 7.0f; // Roughly the middle of the home octave
+
+        // Add a penalty based on how far the chord has drifted from home
+        float drift = std::abs (center - homeCenter);
+        
+        // Only penalize if we drift more than half an octave away
+        if (drift > 6.0f)
+        {
+            // Apply an escalating penalty the further we drift
+            totalDistance += static_cast<int>((drift - 6.0f) * 2.0f);
+        }
+    }
+
     return totalDistance;
 }
 
@@ -245,7 +296,7 @@ std::vector<int> ChordEngine::bestVoicing (int rootMidi, const std::vector<int>&
     for (int inv = 0; inv < maxInv; ++inv)
     {
         auto candidate = buildChord(rootMidi, intervals, extension, inv);
-        int s = scoreVoicing(candidate);
+        int s = scoreVoicing(candidate, rootMidi);
         if (s < bestScore)
         {
             bestScore = s;
