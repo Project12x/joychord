@@ -9,50 +9,46 @@
 
 - JUCE 8 CMake project (Standalone + VST3)
 - All stub source files (ChordEngine, StrumEngine, ButtonRoleMap, ModulationRouter, XInputGamepad)
-- GoogleTest harness -- 4 stub tests passing
+- GoogleTest harness
 - spdlog integration
 - sfizz declared but gated (`if(TARGET sfizz::sfizz)`) due to MSVC CRT mismatch
 
-## Phase 2: Chord Engine
+## Phase 2: Chord Engine  [COMPLETE]
 
-- Integrate **mahler.c** as a real FetchContent dependency (replaces `vendor/mahler.h` placeholder)
-- `ChordEngine`: key + scale model using mahler.c `mah_get_scale()` / `mah_get_chord()`
-- Diatonic chord resolution (scale degrees I-vii)
-- Borrowed chord support (parallel minor via `mah_get_scale()` on parallel mode)
-- `Inversion(n)` support via `mah_invert_chord()`
-- `Extension` types: 7th, sus4, sus2, add9
+- mahler.c integrated as FetchContent dependency
+- `ChordEngine`: diatonic resolution (I-vii), key transpose, 7 scale modes
+- Extensions: 7th, sus4, sus2, add9
+- Inversions: explicit (0-3) or auto via Dijkstra voicing scorer
 - Voicing: close position + drop-2
-- **Dijkstra voicing scorer** -- enumerate inversions, score by total semitone distance from previous chord, pick minimum-movement voicing
-- **Reverse chord identification** via `mah_return_chord()` -- powers the UI chord name display
-- Full unit test coverage with mutation verification
+- Borrowed chords (parallel scale), chromatic chords
+- Chord naming (note + quality + extension suffix)
+- 13 unit tests passing
 
-## Phase 2.5: Playable Checkpoint (v0.2.0)
+## Phase 2.5: Playable Checkpoint  [COMPLETE]  (v0.2.0)
 
-Minimal end-to-end wiring to get a playable instrument. Goal: hold a controller, press buttons, hear chords in a DAW.
+- XInput polling at 100Hz via juce::Timer
+- Hardcoded button map: A=I, B=V, X=IV, Y=vi
+- `SimpleVoice`: sine wave + ADSR, 12-voice polyphony via juce::Synthesiser
+- processBlock: gamepad -> ChordEngine (Dijkstra auto-voicing) -> MidiBuffer -> Synthesiser
+- Basic UI: key/scale/voicing/octave dropdowns, gamepad index selector, chord name display, Xbox diamond button indicators, connection status
 
-- **XInput polling** -- implement real `XInputGamepad::poll()` on a background thread (~100Hz)
-- **Hardcoded button map** -- face buttons A/B/X/Y = degrees I/IV/V/vi, no modifier system yet
-- **Basic JUCE synth** -- `juce::Synthesiser` with 12 `SimpleVoice` (sine + ADSR). Hear chords directly from the Standalone, no DAW needed.
-- **MIDI output** -- ChordEngine result -> `juce::MidiBuffer` note-on/off (also works in DAW)
-- **No strum timing** -- instant chord changes (StrumEngine deferred)
-- **No modulation** -- analog sticks ignored for now
-- **No UI** -- just the default JUCE window with chord name label
-- Tag as v0.2.0 when controller plays chords through speakers
+## Phase 3: Button Role System + Presets
 
-## Phase 3: Button Role System
-
-- `ButtonRole` variant type (already stubbed)
-- `ButtonRoleMap`: physical button -> role mapping
-- Modifier bitmask accumulation (LB, RB, LB+RB)
-- Default "Diatonic Rock" preset (already stubbed)
-- Preset serialization (APVTS / JSON via ValueTree)
+- `ButtonRole` variant dispatch in processBlock (replaces hardcoded map)
+- `ButtonRoleMap`: physical button -> role mapping with modifier bitmask (LB, RB, LB+RB)
+- D-pad roles: key transpose (left/right), octave shift (up/down)
+- Start/Back/L3/R3 assignments (panic, mode toggle, preset cycle)
+- **Factory presets**: Diatonic Rock, Pop Ballad, Jazz Voicings
+- **Preset system**: save/load user presets to JSON, preset dropdown in UI, import/export
+- Preset serialization via ValueTree
 
 ## Phase 4: Strum & Articulation Engine
 
 - `StrumEngine`: hold -> sustain, trigger -> strum
-- Legato slide: **common-tone retention** on chord change (uses Dijkstra voicing scorer output)
-- StrumDown / StrumUp with note spread timing (~10ms/note)
+- StrumDown / StrumUp with per-note spread timing (~10ms/note)
+- Legato slide: common-tone retention on chord change (uses Dijkstra voicing scorer)
 - Analog trigger -> velocity mapping
+- Rhythmic strum patterns (predefined timing grids)
 
 ## Phase 5: Modulation Router
 
@@ -61,10 +57,11 @@ Minimal end-to-end wiring to get a playable instrument. Goal: hold a controller,
 - R-stick X -> CC74 filter
 - R-stick Y -> CC91 reverb
 - Deadzone filtering with EMA smoothing
+- Analog trigger -> assignable CC
 
 ## Phase 6: Internal Synth (sfizz)
 
-- Resolve sfizz MSVC CRT mismatch (link as shared DLL or patch abseil CMakeLists)
+- Resolve sfizz MSVC CRT mismatch (link as shared DLL or patch abseil)
 - Polyphonic sfizz SFZ player
 - Bundle basic SFZ instruments (piano, guitar, strings, bass)
 - R-stick filter routed to sfizz CC
@@ -76,19 +73,21 @@ Minimal end-to-end wiring to get a playable instrument. Goal: hold a controller,
 - MIDI channel selection
 - Standalone: loopMIDI-compatible virtual port
 
-## Phase 8: UI
+## Phase 8: UI (Full)
 
-- Controller layout visualization (Xbox button map)
+- Controller layout visualization (interactive Xbox button map)
 - Key wheel / scale selector
 - Role assignment per button (drag or dropdown)
-- **Chord name display** -- real-time `Cmaj7/E` powered by mahler.c `mah_return_chord()`
+- Real-time chord name display powered by mahler.c
+- Piano roll / note visualizer showing sounding MIDI notes
 - Output mode toggle (Internal Synth / MIDI Out)
 - melatonin_blur for glassmorphic panels
+- Keyboard fallback (QWERTY -> degrees for testing without controller)
+- Latency display
 
 ## Future / Post-v1
 
-- Rhythmic strum patterns (predefined + custom timing grids)
-- Velocity humanization (random +/-offset per note)
+- Velocity humanization (random +/- offset per note)
 - Chord sets / song sections (A/B/C banks switchable mid-performance)
 - MIDI capture (record MIDI output to file)
 - Keys Lock mode (melody over held chord)
