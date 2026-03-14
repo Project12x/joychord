@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
+# Enable modern MSVC runtime library management (must be set BEFORE project())
+cmake_policy(SET CMP0091 NEW)
+
 # Force all targets to use the dynamic MSVC CRT (/MD, /MDd) globally.
 # This avoids LNK2038 CRT-mismatch errors between sfizz/abseil (/MT by default) and JUCE (/MD).
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "" FORCE)
@@ -25,7 +28,7 @@ FetchContent_MakeAvailable(JUCE)
 # (a sfizz dependency) uses /MTd (static CRT) which conflicts with JUCE's /MDd.
 # Re-enable when integrating sfizz in Phase 5; resolve the CRT mismatch then.
 option(JOYCHORD_ENABLE_SFIZZ "Include sfizz SFZ synthesizer" ON)
-if(JOYCHORD_ENABLE_SFIZZ AND NOT MSVC)
+if(JOYCHORD_ENABLE_SFIZZ)
     FetchContent_Declare(
         sfizz
         GIT_REPOSITORY https://github.com/sfztools/sfizz.git
@@ -140,7 +143,11 @@ target_link_libraries(Joychord PRIVATE
 # sfizz's abseil-cpp insists on /MTd (static CRT) and cannot be overridden via CMake cache.
 # Exclude the conflicting static CRT lib from the Windows link to allow JUCE's /MDd to win.
 if(MSVC)
-    target_link_options(Joychord PRIVATE /NODEFAULTLIB:libcmtd /NODEFAULTLIB:libcmt)
+    foreach(_target Joychord Joychord_Standalone Joychord_VST3)
+        if(TARGET ${_target})
+            target_link_options(${_target} PRIVATE /NODEFAULTLIB:libcmtd /NODEFAULTLIB:libcmt)
+        endif()
+    endforeach()
 endif()
 
 # Link sfizz only if the target was actually created (skipped on MSVC to avoid CRT mismatch)
@@ -167,3 +174,23 @@ target_link_libraries(JoychordTests PRIVATE
 
 include(GoogleTest)
 gtest_discover_tests(JoychordTests)
+
+# --- HACK: Force MSVC Dynamic CRT globally on all subdirectories ---
+function(force_dynamic_crt dir)
+    get_property(targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(target IN LISTS targets)
+        get_target_property(target_type ${target} TYPE)
+        if(NOT target_type STREQUAL "INTERFACE_LIBRARY")
+            set_property(TARGET ${target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+        endif()
+    endforeach()
+
+    get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+    foreach(subdir IN LISTS subdirs)
+        force_dynamic_crt(${subdir})
+    endforeach()
+endfunction()
+
+if(MSVC)
+    force_dynamic_crt(${CMAKE_CURRENT_SOURCE_DIR})
+endif()

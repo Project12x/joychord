@@ -7,6 +7,10 @@
 #include "Engine/ModulationRouter.h"
 #include "Input/XInputGamepad.h"
 
+#if JOYCHORD_HAS_SFIZZ
+#include <sfizz.hpp>
+#endif
+
 class JoychordProcessor : public juce::AudioProcessor,
                           private juce::Timer
 {
@@ -70,7 +74,9 @@ private:
     ModulationRouter modulationRouter;
     XInputGamepad    gamepad;
 
-    juce::Synthesiser synth;
+#if JOYCHORD_HAS_SFIZZ
+    std::unique_ptr<sfz::Sfizz> synth;
+#endif
 
     // Active MIDI notes for proper note-off tracking
     std::vector<int> activeNotes;

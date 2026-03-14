@@ -7,9 +7,15 @@ JoychordProcessor::JoychordProcessor()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "JOYCHORD", createParameterLayout())
 {
-    synth.addSound (new SimpleSound());
-    for (int i = 0; i < 12; ++i)
-        synth.addVoice (new SimpleVoice());
+#if JOYCHORD_HAS_SFIZZ
+    synth = std::make_unique<sfz::Sfizz>();
+    
+    // Load default asset relative to app
+    auto appDir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
+    auto sfzFile = appDir.getChildFile ("../assets/basic_sine.sfz");
+    if (sfzFile.existsAsFile())
+        synth->loadSfzFile (sfzFile.getFullPathName().toStdString());
+#endif
 }
 
 JoychordProcessor::~JoychordProcessor()
@@ -34,15 +40,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     return layout;
 }
 
-void JoychordProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
+void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    synth.setCurrentPlaybackSampleRate (sampleRate);
-
-    for (int i = 0; i < synth.getNumVoices(); ++i)
+#if JOYCHORD_HAS_SFIZZ
+    if (synth != nullptr)
     {
-        if (auto* sv = dynamic_cast<SimpleVoice*>(synth.getVoice(i)))
-            sv->prepareToPlay (sampleRate);
+        synth->setSampleRate (static_cast<float> (sampleRate));
+        synth->setSamplesPerBlock (samplesPerBlock);
     }
+#endif
 
     startTimerHz (100);
 }
@@ -256,7 +262,32 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     prevGamepadState = gp;
 
     // Render synth audio
-    synth.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
+#if JOYCHORD_HAS_SFIZZ
+    if (synth != nullptr)
+    {
+        for (const auto meta : midi)
+        {
+            auto msg = meta.getMessage();
+            int time = meta.samplePosition;
+
+            if (msg.isNoteOn())
+                synth->hdNoteOn (time, msg.getNoteNumber(), msg.getFloatVelocity());
+            else if (msg.isNoteOff())
+                synth->hdNoteOff (time, msg.getNoteNumber(), msg.getFloatVelocity());
+            else if (msg.isPitchWheel())
+                synth->pitchWheel (time, msg.getPitchWheelValue());
+            else if (msg.isController())
+                synth->cc (time, msg.getControllerNumber(), msg.getControllerValue());
+        }
+
+        int numStereoOutputs = buffer.getNumChannels() == 2 ? 1 : 0; 
+        if (numStereoOutputs == 1)
+        {
+            float* ptrs[2] = { buffer.getWritePointer(0), buffer.getWritePointer(1) };
+            synth->renderBlock (ptrs, buffer.getNumSamples(), numStereoOutputs);
+        }
+    }
+#endif
 }
 
 juce::AudioProcessorEditor* JoychordProcessor::createEditor()

@@ -1,0 +1,5 @@
+<group>
+ampeg_attack=0.01
+ampeg_release=0.3
+ampeg_sustain=100
+<region> sample=*sine key=60 lokey=0 hikey=127
