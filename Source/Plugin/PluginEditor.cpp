@@ -148,7 +148,6 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     meterR.startMetering();
 
     // Master Volume knob (LED Ladder style)
-    ledLadderLnF.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));
     masterVolumeKnob = std::make_unique<gm::Knob> (processor.apvts, "masterVolume", "Volume", "Master output volume");
     masterVolumeKnob->getSlider().setLookAndFeel (&ledLadderLnF);
     masterVolumeKnob->getSlider().setDoubleClickReturnValue (true, 0.0);  // double-click resets to 0 dB

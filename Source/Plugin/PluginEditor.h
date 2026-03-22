@@ -56,13 +56,12 @@ private:
     gm::LEDMeter meterL, meterR;
 
     // LED Ladder knob LookAndFeel for master volume
-    struct LedLadderLnF : public gm::DarkMetallicTheme {
-        using gm::DarkMetallicTheme::DarkMetallicTheme;
+    struct LedLadderLnF : public juce::LookAndFeel_V4 {
         void drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
                                float pos, float startA, float endA,
                                juce::Slider& s) override {
             gm::knobs::drawLedLadderKnob (g, x, y, w, h, pos, startA, endA, s,
-                                           findColour (accentColourId));
+                                           juce::Colour (0xff00ccff));  // neon cyan
         }
     } ledLadderLnF;
 
