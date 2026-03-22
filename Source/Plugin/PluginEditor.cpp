@@ -147,11 +147,19 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     meterL.startMetering();
     meterR.startMetering();
 
+    // Master Volume knob (LED Ladder style)
+    ledLadderLnF.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));
+    masterVolumeKnob = std::make_unique<gm::Knob> (processor.apvts, "masterVolume", "Volume", "Master output volume");
+    masterVolumeKnob->getSlider().setLookAndFeel (&ledLadderLnF);
+    masterVolumeKnob->getSlider().setDoubleClickReturnValue (true, 0.0);  // double-click resets to 0 dB
+    addAndMakeVisible (*masterVolumeKnob);
+
     startTimerHz (30);
 }
 
 JoychordEditor::~JoychordEditor()
 {
+    masterVolumeKnob->getSlider().setLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
     meterL.stopMetering();
     meterR.stopMetering();
@@ -362,13 +370,19 @@ void JoychordEditor::resized()
     // Chord display
     chordLabel.setBounds (remainingArea.removeFromTop (40));
 
-    // LED Meters (right side, full height of button area)
+    // LED Meters (right side of gamepad area)
     int meterW = 14;
     int meterH = 120;
     int meterX = getWidth() - 40;
     int meterY = 260;
     meterL.setBounds (meterX, meterY, meterW, meterH);
     meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
+
+    // Master Volume knob (above meters)
+    int knobSize = 64;
+    int knobX = meterX - (knobSize / 2) + meterW;  // centered over meter pair
+    int knobY = meterY - knobSize - 8;
+    masterVolumeKnob->setBounds (knobX, knobY, knobSize, knobSize + 20);  // +20 for label/value
 
     // Status at bottom
     statusLabel.setBounds (getLocalBounds().removeFromBottom (24).reduced (16, 0));

@@ -3,6 +3,8 @@
 #include "PluginProcessor.h"
 #include "DarkMetallicTheme.h"
 #include "LEDMeter.h"
+#include "Knob.h"
+#include "KnobStyles.h"
 
 class JoychordEditor : public juce::AudioProcessorEditor,
                        private juce::Timer
@@ -52,6 +54,19 @@ private:
     // Ghostmoon UI
     gm::DarkMetallicTheme darkTheme;
     gm::LEDMeter meterL, meterR;
+
+    // LED Ladder knob LookAndFeel for master volume
+    struct LedLadderLnF : public gm::DarkMetallicTheme {
+        using gm::DarkMetallicTheme::DarkMetallicTheme;
+        void drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
+                               float pos, float startA, float endA,
+                               juce::Slider& s) override {
+            gm::knobs::drawLedLadderKnob (g, x, y, w, h, pos, startA, endA, s,
+                                           findColour (accentColourId));
+        }
+    } ledLadderLnF;
+
+    std::unique_ptr<gm::Knob> masterVolumeKnob;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };

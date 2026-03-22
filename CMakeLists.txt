@@ -129,6 +129,11 @@ target_sources(Joychord PRIVATE
     Source/Engine/ModulationRouter.cpp
     Source/Input/XInputGamepad.cpp
     Source/Synth/TinySoundFont.cpp
+    Source/UI/GhostmoonUI/KnobStyles.cpp
+    Source/UI/GhostmoonUI/KnobStylesStandard.cpp
+    Source/UI/GhostmoonUI/KnobStylesBipolar.cpp
+    Source/UI/GhostmoonUI/KnobStylesStepped.cpp
+    Source/UI/GhostmoonUI/KnobStylesEncoder.cpp
 )
 
 target_include_directories(Joychord PRIVATE

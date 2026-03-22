@@ -69,6 +69,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
         juce::StringArray { "MIDI", "SYNTH", "PIANO", "SFZ" }, 1)); // Default to SYNTH
     layout.add (std::make_unique<juce::AudioParameterInt>  ("midiChannel",    "MIDI Channel",   1, 16, 1));
     layout.add (std::make_unique<juce::AudioParameterInt>  ("octave",         "Octave",         2, 6, 4));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("masterVolume", 1), "Master Volume",
+        juce::NormalisableRange<float> (-60.0f, 6.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes()
+            .withLabel ("dB")
+            .withStringFromValueFunction ([](float v, int) {
+                if (v <= -59.9f) return juce::String ("-inf");
+                return juce::String (v, 1) + " dB";
+            })));
 
     return layout;
 }
@@ -500,6 +509,11 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // Prevent snapping by ramping gain smoothly across the block
     buffer.applyGainRamp (0, buffer.getNumSamples(), currentPolyGain, targetPolyGain);
     currentPolyGain = targetPolyGain;
+
+    // Master volume (dB to linear)
+    float volDb = apvts.getRawParameterValue ("masterVolume")->load();
+    float volLin = (volDb <= -59.9f) ? 0.0f : std::pow (10.0f, volDb / 20.0f);
+    buffer.applyGain (volLin);
 
     // Ghostmoon safety chain: NaN guard, DC blocker, soft limiter, hard clip
     auto* L = buffer.getWritePointer (0);
