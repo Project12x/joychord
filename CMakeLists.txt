@@ -9,7 +9,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE 
 
 project(Joychord VERSION 0.1.0)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ── JUCE ─────────────────────────────────────────────────────────────────────
@@ -40,7 +40,11 @@ if(JOYCHORD_ENABLE_SFIZZ)
     set(SFIZZ_VST3   OFF CACHE BOOL "" FORCE)
     set(SFIZZ_LV2    OFF CACHE BOOL "" FORCE)
     set(SFIZZ_AU     OFF CACHE BOOL "" FORCE)
+    # sfizz 1.2.3 + abseil uses initializer list patterns that break under C++20.
+    # Temporarily drop to C++17 for sfizz, then restore C++20.
+    set(CMAKE_CXX_STANDARD 17)
     FetchContent_MakeAvailable(sfizz)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 # ── spdlog ───────────────────────────────────────────────────────────────────
@@ -79,6 +83,11 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# ── ghostmoon DSP framework ──────────────────────────────────────────────────
+# Provides gm:: DSP headers + transitive deps (xsimd, signalsmith, pffft, etc.)
+set(GHOSTMOON_DIR "C:/Users/estee/Desktop/My Stuff/Code/Antigravity/ghostmoon")
+add_subdirectory("${GHOSTMOON_DIR}/dsp" ghostmoon_dsp_build)
+
 # ── Plugin target ─────────────────────────────────────────────────────────────
 juce_add_plugin(Joychord
     VERSION                  ${PROJECT_VERSION}
@@ -112,10 +121,12 @@ target_sources(Joychord PRIVATE
     Source/Engine/ButtonRoleMap.cpp
     Source/Engine/ModulationRouter.cpp
     Source/Input/XInputGamepad.cpp
+    Source/Synth/TinySoundFont.cpp
 )
 
 target_include_directories(Joychord PRIVATE
     Source
+    vendor/tsf
 )
 
 target_compile_definitions(Joychord PUBLIC
@@ -132,12 +143,20 @@ target_link_libraries(Joychord PRIVATE
     juce::juce_gui_extra
     spdlog::spdlog
     mahler
-    # melatonin_blur -- re-added in UI phase with manual juce_add_module
+    ghostmoon_dsp
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
+)
+
+# Copy assets folder to Standalone output directory so the relative path lookup works
+add_custom_command(TARGET Joychord_Standalone POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    "$<TARGET_FILE_DIR:Joychord_Standalone>/../assets"
+    COMMENT "Copying assets folder to Standalone executable directory"
 )
 
 # sfizz's abseil-cpp insists on /MTd (static CRT) and cannot be overridden via CMake cache.
