@@ -1,13 +1,26 @@
 #include "PluginEditor.h"
+#include <BinaryData.h>
+#include "Typography.h"
 
 static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
 
 JoychordEditor::JoychordEditor (JoychordProcessor& p)
-    : AudioProcessorEditor (&p), processor (p)
+    : AudioProcessorEditor (&p), processor (p),
+      darkTheme (
+          juce::Typeface::createSystemTypefaceFor (BinaryData::InterRegular_ttf, BinaryData::InterRegular_ttfSize),
+          juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize),
+          juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize)
+      )
 {
     setSize (520, 480);
 
-    // Apply ghostmoon dark metallic theme with neon accent
+    // Init Typography singleton with same typefaces
+    auto& typo = gm::Typography::getInstance();
+    typo.setInterRegular  (darkTheme.getInterFont (12.0f).getTypefacePtr());
+    typo.setInterBold     (darkTheme.getInterFont (12.0f, true).getTypefacePtr());
+    typo.setJetBrainsMono (darkTheme.getMonoFont (12.0f).getTypefacePtr());
+
+    // Apply ghostmoon dark metallic theme with neon cyan accent
     setLookAndFeel (&darkTheme);
     darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));  // Neon cyan accent
 
@@ -284,26 +297,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawRoleLabel (ButtonId::DRight, dpadCx + ds + r + 2,       dpadCy - 6,      juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::DDown,  dpadCx - r - 32,           dpadCy + ds - 6, juce::Justification::centredRight);
 
-    // Drop shadow glow effect behind the main chord text
-    if (processor.lastChordName.isNotEmpty())
-    {
-        juce::Path textPath;
-        juce::GlyphArrangement glyphs;
-        glyphs.addLineOfText (juce::FontOptions(42.0f, juce::Font::bold), processor.lastChordName, 0, 0);
-        glyphs.createPath (textPath);
-
-        // Center the path bounds manually
-        auto bounds = textPath.getBounds();
-        auto targetRect = chordLabel.getBounds().toFloat();
-        juce::AffineTransform transform = juce::AffineTransform::translation (
-            targetRect.getCentreX() - bounds.getCentreX(),
-            targetRect.getCentreY() - bounds.getCentreY()
-        );
-        textPath.applyTransform (transform);
-
-        juce::DropShadow shadow (juce::Colour (0xcc88aaff), 10, juce::Point<int>(0, 0));
-        shadow.drawForPath (g, textPath);
-    }
+    // Chord label glow is handled by the themed label — no manual path needed
 }
 
 void JoychordEditor::resized()

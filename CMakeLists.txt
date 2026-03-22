@@ -141,6 +141,8 @@ target_compile_definitions(Joychord PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    GM_TYPOGRAPHY_MANUAL_INIT
+    GM_DARK_METALLIC_MANUAL_INIT
 )
 
 target_link_libraries(Joychord PRIVATE

@@ -43,3 +43,8 @@ Thumbs.db
 .idea/
 .vscode/settings.json
 *.swp
+
+# Build logs / temp files
+*.txt
+!CMakeLists.txt
+!requirements.txt

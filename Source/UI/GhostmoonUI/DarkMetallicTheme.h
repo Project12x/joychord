@@ -8,7 +8,11 @@
 // original dark metallic palette. ThemeManager can override any color by calling
 // setColour() on the LookAndFeel instance.
 
-#include <BinaryData.h>
+#if !defined(GM_DARK_METALLIC_MANUAL_INIT) && __has_include(<BinaryData.h>)
+  #include <BinaryData.h>
+  #define GM_DARK_METALLIC_AUTO_LOAD_ 1
+#endif
+
 #include <juce_gui_basics/juce_gui_basics.h>
 
 namespace gm {
@@ -62,7 +66,16 @@ public:
     faderThumbColourId      = 0x320000E
   };
 
+  /// Construct with pre-loaded typefaces (no BinaryData dependency).
+  DarkMetallicTheme(juce::Typeface::Ptr interRegular_,
+                    juce::Typeface::Ptr interBold_,
+                    juce::Typeface::Ptr mono_)
+      : interRegular(interRegular_), interBold(interBold_), mono(mono_) {
+    initColours();
+  }
+
   DarkMetallicTheme() {
+#ifdef GM_DARK_METALLIC_AUTO_LOAD_
     interRegular = juce::Typeface::createSystemTypefaceFor(
         BinaryData::InterRegular_ttf, BinaryData::InterRegular_ttfSize);
     interBold = juce::Typeface::createSystemTypefaceFor(
@@ -70,7 +83,12 @@ public:
     mono = juce::Typeface::createSystemTypefaceFor(
         BinaryData::JetBrainsMonoRegular_ttf,
         BinaryData::JetBrainsMonoRegular_ttfSize);
+#endif
+    initColours();
+  }
 
+private:
+  void initColours() {
     // Register all defaults
     setColour(bgColourId,             juce::Colour(Colors::bg));
     setColour(panelColourId,          juce::Colour(Colors::panelBg));
@@ -95,19 +113,18 @@ public:
     setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
   }
 
-  /// Apply colors from ThemeManager to this LookAndFeel's ColourIds.
-  /// Call this when the theme changes.
+public:
   /// Apply colors from ThemeManager to this LookAndFeel's ColourIds.
   /// Accent/text/panel colors are fully overridden.
   /// Body/surface colors (knob body, fader thumb, indicator) are TINTED —
   /// blended toward the theme tone while preserving the style's character.
-  void applyTheme(const std::map<juce::String, juce::Colour>& colours,
+  void applyTheme(const std::map<juce::String, juce::Colour>& colourMap,
                   juce::Colour tintColour = juce::Colour(0xff141418),
                   float tintAmount = 0.0f) {
     // Full override: UI chrome colors
     auto apply = [&](ColourIds id, const char* key) {
-      auto it = colours.find(key);
-      if (it != colours.end()) setColour(id, it->second);
+      auto it = colourMap.find(key);
+      if (it != colourMap.end()) setColour(id, it->second);
     };
     apply(bgColourId,             "background");
     apply(panelColourId,          "panel");
@@ -134,11 +151,11 @@ public:
     tint(faderThumbColourId,     Colors::faderThumb);
 
     // Standard JUCE ColourIds
-    auto it = colours.find("background");
-    if (it != colours.end())
+    auto it = colourMap.find("background");
+    if (it != colourMap.end())
       setColour(juce::ResizableWindow::backgroundColourId, it->second);
-    it = colours.find("textPrimary");
-    if (it != colours.end()) {
+    it = colourMap.find("textPrimary");
+    if (it != colourMap.end()) {
       setColour(juce::Label::textColourId, it->second);
       setColour(juce::Slider::textBoxTextColourId, it->second);
     }
@@ -146,12 +163,12 @@ public:
 
   juce::Font getInterFont(float height, bool bold = false) const {
     auto tf = bold ? interBold : interRegular;
-    if (!tf) return juce::Font(height);
+    if (!tf) return juce::Font(juce::FontOptions().withHeight(height));
     return juce::Font(juce::FontOptions(tf).withHeight(height));
   }
 
   juce::Font getMonoFont(float height) const {
-    if (!mono) return juce::Font(height);
+    if (!mono) return juce::Font(juce::FontOptions().withHeight(height));
     return juce::Font(juce::FontOptions(mono).withHeight(height));
   }
 
