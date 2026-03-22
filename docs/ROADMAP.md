@@ -42,7 +42,14 @@
 - **Preset system**: save/load user presets to JSON, preset dropdown in UI, import/export
 - Preset serialization via ValueTree
 
-## Phase 4: Strum & Articulation Engine
+## Phase 4: Internal Synth (sfizz)
+
+- Resolve sfizz MSVC CRT mismatch (link as shared DLL or patch abseil)
+- Polyphonic sfizz SFZ player
+- Bundle basic SFZ instruments (piano, guitar, strings, bass)
+- R-stick filter routed to sfizz CC
+
+## Phase 5: Strum & Articulation Engine
 
 - `StrumEngine`: hold -> sustain, trigger -> strum
 - StrumDown / StrumUp with per-note spread timing (~10ms/note)
@@ -50,7 +57,7 @@
 - Analog trigger -> velocity mapping
 - Rhythmic strum patterns (predefined timing grids)
 
-## Phase 5: Modulation Router
+## Phase 6: Modulation Router
 
 - L-stick X -> pitch bend (14-bit)
 - L-stick Y -> CC11 expression
@@ -58,13 +65,6 @@
 - R-stick Y -> CC91 reverb
 - Deadzone filtering with EMA smoothing
 - Analog trigger -> assignable CC
-
-## Phase 6: Internal Synth (sfizz)
-
-- Resolve sfizz MSVC CRT mismatch (link as shared DLL or patch abseil)
-- Polyphonic sfizz SFZ player
-- Bundle basic SFZ instruments (piano, guitar, strings, bass)
-- R-stick filter routed to sfizz CC
 
 ## Phase 7: MIDI Output (Full)
 

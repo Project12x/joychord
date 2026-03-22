@@ -5,7 +5,11 @@ static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#",
 JoychordEditor::JoychordEditor (JoychordProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
-    setSize (480, 460);
+    setSize (520, 480);
+
+    // Apply ghostmoon dark metallic theme with neon accent
+    setLookAndFeel (&darkTheme);
+    darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));  // Neon cyan accent
 
     // Key dropdown
     keyLabel.setText ("Key", juce::dontSendNotification);
@@ -124,11 +128,20 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     statusLabel.setColour (juce::Label::textColourId, juce::Colour (0xff808080));
     addAndMakeVisible (statusLabel);
 
+    // LED Meters
+    addAndMakeVisible (meterL);
+    addAndMakeVisible (meterR);
+    meterL.startMetering();
+    meterR.startMetering();
+
     startTimerHz (30);
 }
 
 JoychordEditor::~JoychordEditor()
 {
+    setLookAndFeel (nullptr);
+    meterL.stopMetering();
+    meterR.stopMetering();
     stopTimer();
 }
 
@@ -164,7 +177,13 @@ void JoychordEditor::timerCallback()
     statusLabel.setText (connected ? "Controller: connected" : "Controller: not connected",
                          juce::dontSendNotification);
     statusLabel.setColour (juce::Label::textColourId,
-                           connected ? juce::Colour (0xff40c040) : juce::Colour (0xff808080));
+                           connected ? juce::Colour (0xff00ccff) : juce::Colour (0xff808080));
+
+    // Feed LED meters from ghostmoon MeterSource
+    auto& src = processor.getMeterSource();
+    src.decay();  // transfer audio-thread peaks to display values
+    meterL.setLevel (src.getPeak (0));
+    meterR.setLevel (src.getPeak (1));
 
     repaint();
 }
@@ -197,11 +216,11 @@ static juce::String getRoleLabel (const ButtonRole& role)
 
 void JoychordEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xff1a1a2e));
+    g.fillAll (findColour (gm::DarkMetallicTheme::bgColourId));
 
     // Title
-    g.setColour (juce::Colour (0xffe0e0ff));
-    g.setFont (juce::FontOptions (20.0f));
+    g.setColour (juce::Colour (0xff00ccff));  // Neon cyan
+    g.setFont (darkTheme.getInterFont (22.0f, true));
     g.drawText ("Joychord", 0, 8, getWidth(), 28, juce::Justification::centred);
 
     // ── Button indicators ──
@@ -348,6 +367,14 @@ void JoychordEditor::resized()
 
     // Chord display
     chordLabel.setBounds (remainingArea.removeFromTop (40));
+
+    // LED Meters (right side, full height of button area)
+    int meterW = 14;
+    int meterH = 120;
+    int meterX = getWidth() - 40;
+    int meterY = 260;
+    meterL.setBounds (meterX, meterY, meterW, meterH);
+    meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
 
     // Status at bottom
     statusLabel.setBounds (getLocalBounds().removeFromBottom (24).reduced (16, 0));

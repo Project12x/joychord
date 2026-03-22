@@ -1,6 +1,8 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
+#include "DarkMetallicTheme.h"
+#include "LEDMeter.h"
 
 class JoychordEditor : public juce::AudioProcessorEditor,
                        private juce::Timer
@@ -46,6 +48,10 @@ private:
     bool dUp = false, dDown = false, dLeft = false, dRight = false;
     bool lb = false, rb = false;
     bool connected = false;
+
+    // Ghostmoon UI
+    gm::DarkMetallicTheme darkTheme;
+    gm::LEDMeter meterL, meterR;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };

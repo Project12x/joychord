@@ -69,7 +69,7 @@ private:
     static std::string chordName (int rootMidi, const std::vector<int>& intervals, int extension);
 
     // Score a voicing by total semitone distance from previousNotes (Dijkstra)
-    int scoreVoicing (const std::vector<int>& candidate) const;
+    int scoreVoicing (const std::vector<int>& candidate, int rootMidi) const;
 
     // Pick best inversion using Dijkstra voicing scorer
     std::vector<int> bestVoicing (int rootMidi, const std::vector<int>& intervals,

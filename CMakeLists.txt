@@ -102,6 +102,13 @@ juce_add_plugin(Joychord
     IS_SYNTH                 TRUE
 )
 
+# ── Font binary data (ghostmoon font kit – core subset) ──────────────────────
+juce_add_binary_data(JoychordFonts SOURCES
+    Source/UI/Fonts/Inter-Regular.ttf
+    Source/UI/Fonts/Inter-Bold.ttf
+    Source/UI/Fonts/JetBrainsMono-Regular.ttf
+)
+
 # Force dynamic CRT on all JUCE-generated plugin subtargets (Standalone, VST3, SharedCode).
 # Needed because sfizz's abseil-cpp links /MTd by default, causing LNK2038 unless we
 # explicitly request /MDd on every subtarget that links against sfizz.
@@ -126,6 +133,7 @@ target_sources(Joychord PRIVATE
 
 target_include_directories(Joychord PRIVATE
     Source
+    Source/UI/GhostmoonUI
     vendor/tsf
 )
 
@@ -144,6 +152,7 @@ target_link_libraries(Joychord PRIVATE
     spdlog::spdlog
     mahler
     ghostmoon_dsp
+    JoychordFonts
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
     juce::juce_recommended_config_flags

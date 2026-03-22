@@ -72,7 +72,7 @@ public:
 
     // Ghostmoon DSP accessors for UI
     float getCpuLoad() const { return cpuMeter.getLoadPercent(); }
-    const gm::MeterSource& getMeterSource() const { return meterSource; }
+    gm::MeterSource& getMeterSource() { return meterSource; }
 
 private:
     void timerCallback() override;
