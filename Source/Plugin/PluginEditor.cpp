@@ -14,11 +14,11 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 {
     setSize (520, 480);
 
-    // Init Typography singleton with same typefaces
+    // Init Typography singleton with embedded fonts
     auto& typo = gm::Typography::getInstance();
-    typo.setInterRegular  (darkTheme.getInterFont (12.0f).getTypefacePtr());
-    typo.setInterBold     (darkTheme.getInterFont (12.0f, true).getTypefacePtr());
-    typo.setJetBrainsMono (darkTheme.getMonoFont (12.0f).getTypefacePtr());
+    typo.setInterRegular  (juce::Typeface::createSystemTypefaceFor (BinaryData::InterRegular_ttf, BinaryData::InterRegular_ttfSize));
+    typo.setInterBold     (juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize));
+    typo.setJetBrainsMono (juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize));
 
     // Apply ghostmoon dark metallic theme with neon cyan accent
     setLookAndFeel (&darkTheme);
