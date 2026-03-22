@@ -88,6 +88,12 @@ FetchContent_MakeAvailable(googletest)
 set(GHOSTMOON_DIR "C:/Users/estee/Desktop/My Stuff/Code/Antigravity/ghostmoon")
 add_subdirectory("${GHOSTMOON_DIR}/dsp" ghostmoon_dsp_build)
 
+
+# ── ghostmoon UI framework ───────────────────────────────────────────────────
+# Provides gm:: UI components (DarkMetallicTheme, KnobStyles, LEDMeter, etc.)
+# v0.4.0: self-fetches melatonin_blur with if(NOT TARGET) guards
+add_subdirectory("${GHOSTMOON_DIR}/ui" ghostmoon_ui_build)
+
 # ── Plugin target ─────────────────────────────────────────────────────────────
 juce_add_plugin(Joychord
     VERSION                  ${PROJECT_VERSION}
@@ -129,16 +135,10 @@ target_sources(Joychord PRIVATE
     Source/Engine/ModulationRouter.cpp
     Source/Input/XInputGamepad.cpp
     Source/Synth/TinySoundFont.cpp
-    Source/UI/GhostmoonUI/KnobStyles.cpp
-    Source/UI/GhostmoonUI/KnobStylesStandard.cpp
-    Source/UI/GhostmoonUI/KnobStylesBipolar.cpp
-    Source/UI/GhostmoonUI/KnobStylesStepped.cpp
-    Source/UI/GhostmoonUI/KnobStylesEncoder.cpp
 )
 
 target_include_directories(Joychord PRIVATE
     Source
-    Source/UI/GhostmoonUI
     vendor/tsf
 )
 
@@ -146,8 +146,6 @@ target_compile_definitions(Joychord PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    GM_TYPOGRAPHY_MANUAL_INIT
-    GM_DARK_METALLIC_MANUAL_INIT
 )
 
 target_link_libraries(Joychord PRIVATE
@@ -159,6 +157,7 @@ target_link_libraries(Joychord PRIVATE
     spdlog::spdlog
     mahler
     ghostmoon_dsp
+    ghostmoon_ui
     JoychordFonts
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
