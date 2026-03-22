@@ -96,6 +96,9 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     }
     tsfInterleavedBuffer.resize (samplesPerBlock * 2);
 
+    // Ghostmoon DSP
+    safetyLimiter.prepare (sampleRate);
+
     startTimerHz (100);
 }
 
@@ -176,6 +179,7 @@ bool JoychordProcessor::getButtonState (const GamepadState& gp, ButtonId btn)
 void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    cpuMeter.startBlock();
     buffer.clear();
 
     // Snapshot gamepad state
@@ -496,6 +500,17 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // Prevent snapping by ramping gain smoothly across the block
     buffer.applyGainRamp (0, buffer.getNumSamples(), currentPolyGain, targetPolyGain);
     currentPolyGain = targetPolyGain;
+
+    // Ghostmoon safety chain: NaN guard, DC blocker, soft limiter, hard clip
+    auto* L = buffer.getWritePointer (0);
+    auto* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
+    safetyLimiter.process (L, R, buffer.getNumSamples());
+
+    // Metering (feeds UI level meters)
+    meterSource.process (L, buffer.getNumSamples(), 0);
+    if (R) meterSource.process (R, buffer.getNumSamples(), 1);
+
+    cpuMeter.endBlock (getSampleRate(), buffer.getNumSamples());
 }
 
 juce::AudioProcessorEditor* JoychordProcessor::createEditor()

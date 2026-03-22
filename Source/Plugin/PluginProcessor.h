@@ -1,6 +1,9 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <ghostmoon/SafetyLimiter.h>
+#include <ghostmoon/CpuMeter.h>
+#include <ghostmoon/MeterSource.h>
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
@@ -67,6 +70,10 @@ public:
 
     ButtonRoleMap& getRoleMap() { return roleMap; }
 
+    // Ghostmoon DSP accessors for UI
+    float getCpuLoad() const { return cpuMeter.getLoadPercent(); }
+    const gm::MeterSource& getMeterSource() const { return meterSource; }
+
 private:
     void timerCallback() override;
 
@@ -97,6 +104,11 @@ private:
 
     // Tracker for dynamic polyphony gain (Equal Power: 1 / sqrt(N))
     float currentPolyGain = 1.0f;
+
+    // Ghostmoon DSP
+    gm::SafetyLimiter safetyLimiter;
+    gm::CpuMeter      cpuMeter;
+    gm::MeterSource    meterSource;
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;
