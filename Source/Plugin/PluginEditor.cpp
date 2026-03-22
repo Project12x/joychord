@@ -127,6 +127,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         });
     };
 
+
     // Chord display
     chordLabel.setText ("---", juce::dontSendNotification);
     chordLabel.setFont (juce::FontOptions (36.0f));
@@ -141,11 +142,13 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     statusLabel.setColour (juce::Label::textColourId, juce::Colour (0xff808080));
     addAndMakeVisible (statusLabel);
 
+
     // LED Meters
     addAndMakeVisible (meterL);
     addAndMakeVisible (meterR);
     meterL.startMetering();
     meterR.startMetering();
+
 
     // Master Volume knob (LED Ladder style)
     masterVolumeKnob = std::make_unique<gm::Knob> (processor.apvts, "masterVolume", "Volume", "Master output volume");
@@ -240,7 +243,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // Title
     g.setColour (juce::Colour (0xff00ccff));  // Neon cyan
-    g.setFont (darkTheme.getInterFont (22.0f, true));
+    g.setFont (gm::Typography::getInstance().getTitleFont (22.0f));
     g.drawText ("Joychord", 0, 8, getWidth(), 28, juce::Justification::centred);
 
     // ── Button indicators ──
@@ -381,7 +384,8 @@ void JoychordEditor::resized()
     int knobSize = 64;
     int knobX = meterX - (knobSize / 2) + meterW;  // centered over meter pair
     int knobY = meterY - knobSize - 8;
-    masterVolumeKnob->setBounds (knobX, knobY, knobSize, knobSize + 20);  // +20 for label/value
+    if (masterVolumeKnob)
+        masterVolumeKnob->setBounds (knobX, knobY, knobSize, knobSize + 20);  // +20 for label/value
 
     // Status at bottom
     statusLabel.setBounds (getLocalBounds().removeFromBottom (24).reduced (16, 0));
