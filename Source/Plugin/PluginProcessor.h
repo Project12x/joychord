@@ -4,6 +4,10 @@
 #include <ghostmoon/SafetyLimiter.h>
 #include <ghostmoon/CpuMeter.h>
 #include <ghostmoon/MeterSource.h>
+#include <ghostmoon/PlateReverb.h>
+#include <ghostmoon/MoogLadder.h>
+#include <ghostmoon/Chorus.h>
+#include <ghostmoon/ParamSmoother.h>
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
@@ -109,6 +113,20 @@ private:
     gm::SafetyLimiter safetyLimiter;
     gm::CpuMeter      cpuMeter;
     gm::MeterSource    meterSource;
+
+    // Effects chain
+    gm::PlateReverb    reverb;
+    gm::MoogLadder     filterL, filterR;
+    gm::Chorus         chorus;
+
+    // Parameter smoothers for RT-safe control
+    gm::ParamSmoother<float> smoothReverbDecay{0.02f};
+    gm::ParamSmoother<float> smoothReverbDamp{0.02f};
+    gm::ParamSmoother<float> smoothReverbMix{0.02f};
+    gm::ParamSmoother<float> smoothFilterCutoff{0.02f};
+    gm::ParamSmoother<float> smoothFilterRes{0.02f};
+    gm::ParamSmoother<float> smoothChorusRate{0.02f};
+    gm::ParamSmoother<float> smoothChorusMix{0.02f};
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;

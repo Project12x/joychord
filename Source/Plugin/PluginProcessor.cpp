@@ -79,6 +79,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
                 return juce::String (v, 1) + " dB";
             })));
 
+    // Effects parameters
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("reverbDecay", 1), "Reverb Decay",
+        juce::NormalisableRange<float> (0.0f, 0.85f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("reverbDamp", 1), "Reverb Damp",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.4f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("reverbMix", 1), "Reverb Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("filterCutoff", 1), "Filter Cutoff",
+        juce::NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.3f), 8000.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("filterRes", 1), "Filter Resonance",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("chorusRate", 1), "Chorus Rate",
+        juce::NormalisableRange<float> (0.1f, 5.0f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("chorusMix", 1), "Chorus Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+
     return layout;
 }
 
@@ -107,6 +130,21 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     // Ghostmoon DSP
     safetyLimiter.prepare (sampleRate);
+
+    // Effects chain
+    reverb.prepare (static_cast<float> (sampleRate));
+    filterL.prepare (sampleRate);
+    filterR.prepare (sampleRate);
+    chorus.prepare (static_cast<float> (sampleRate));
+
+    // Param smoothers
+    smoothReverbDecay.prepare (sampleRate);
+    smoothReverbDamp.prepare (sampleRate);
+    smoothReverbMix.prepare (sampleRate);
+    smoothFilterCutoff.prepare (sampleRate);
+    smoothFilterRes.prepare (sampleRate);
+    smoothChorusRate.prepare (sampleRate);
+    smoothChorusMix.prepare (sampleRate);
 
     startTimerHz (100);
 }
@@ -514,6 +552,60 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     float volDb = apvts.getRawParameterValue ("masterVolume")->load();
     float volLin = (volDb <= -59.9f) ? 0.0f : std::pow (10.0f, volDb / 20.0f);
     buffer.applyGain (volLin);
+
+    // ── Effects Chain (per-sample) ──
+    {
+        float rvDecay  = apvts.getRawParameterValue ("reverbDecay")->load();
+        float rvDamp   = apvts.getRawParameterValue ("reverbDamp")->load();
+        float rvMix    = apvts.getRawParameterValue ("reverbMix")->load();
+        float fCut     = apvts.getRawParameterValue ("filterCutoff")->load();
+        float fRes     = apvts.getRawParameterValue ("filterRes")->load();
+        float chRate   = apvts.getRawParameterValue ("chorusRate")->load();
+        float chMix    = apvts.getRawParameterValue ("chorusMix")->load();
+
+        auto* L = buffer.getWritePointer (0);
+        auto* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
+        int numSamples = buffer.getNumSamples();
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            // Smooth all parameters
+            float srvDecay = smoothReverbDecay.process (rvDecay);
+            float srvDamp  = smoothReverbDamp.process (rvDamp);
+            float srvMix   = smoothReverbMix.process (rvMix);
+            float sfCut    = smoothFilterCutoff.process (fCut);
+            float sfRes    = smoothFilterRes.process (fRes);
+            float schRate  = smoothChorusRate.process (chRate);
+            float schMix   = smoothChorusMix.process (chMix);
+
+            // 1. Filter (MoogLadder LP24)
+            filterL.setFreq (static_cast<double> (sfCut));
+            filterL.setRes (static_cast<double> (sfRes * 1.8));
+            filterR.setFreq (static_cast<double> (sfCut));
+            filterR.setRes (static_cast<double> (sfRes * 1.8));
+            L[i] = filterL.process (L[i]);
+            if (R) R[i] = filterR.process (R[i]);
+
+            // 2. Chorus
+            if (schMix > 0.001f)
+            {
+                chorus.setRate (schRate);
+                chorus.setMix (schMix);
+                float cL = L[i], cR = R ? R[i] : L[i];
+                chorus.processSample (cL, cR, L[i], R ? R[i] : cL);
+            }
+
+            // 3. Reverb (PlateReverb)
+            if (srvMix > 0.001f)
+            {
+                reverb.setDecay (srvDecay);
+                reverb.setDamping (srvDamp);
+                reverb.setMix (srvMix);
+                float rL = L[i], rR = R ? R[i] : L[i];
+                reverb.processSample (rL, rR, L[i], R ? R[i] : rL);
+            }
+        }
+    }
 
     // Ghostmoon safety chain: NaN guard, DC blocker, soft limiter, hard clip
     auto* L = buffer.getWritePointer (0);
