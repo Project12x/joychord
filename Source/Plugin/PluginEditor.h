@@ -86,5 +86,13 @@ private:
 
     std::unique_ptr<gm::Knob> masterVolumeKnob;
 
+    // Effects knobs
+    std::unique_ptr<gm::Knob> reverbDecayKnob, reverbDampKnob, reverbMixKnob;
+    std::unique_ptr<gm::Knob> filterCutoffKnob, filterResKnob;
+    std::unique_ptr<gm::Knob> chorusRateKnob, chorusMixKnob;
+
+    // Section label for effects
+    juce::Label effectsLabel;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };

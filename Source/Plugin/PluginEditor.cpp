@@ -12,7 +12,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     typo.setInterBold     (juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize));
     typo.setJetBrainsMono (juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize));
 
-    setSize (520, 480);
+    setSize (520, 560);
 
     // Apply Joychord theme (DarkMetallic + Neon combos) with neon cyan accent
     setLookAndFeel (&darkTheme);
@@ -150,12 +150,46 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     masterVolumeKnob->getSlider().setDoubleClickReturnValue (true, 0.0);  // double-click resets to 0 dB
     addAndMakeVisible (*masterVolumeKnob);
 
+    // Effects section label
+    effectsLabel.setText ("EFFECTS", juce::dontSendNotification);
+    effectsLabel.setFont (gm::Typography::getInstance().getLabelFont (11.0f));
+    effectsLabel.setJustificationType (juce::Justification::centredLeft);
+    effectsLabel.setColour (juce::Label::textColourId, juce::Colour (0xff00ccff));
+    addAndMakeVisible (effectsLabel);
+
+    // Effects knobs (LED Ladder style, neon cyan)
+    auto makeEffectKnob = [&](const juce::String& paramId, const juce::String& label,
+                              const juce::String& tooltip, double defaultVal) {
+        auto knob = std::make_unique<gm::Knob> (processor.apvts, paramId, label, tooltip);
+        knob->getSlider().setLookAndFeel (&ledLadderLnF);
+        knob->getSlider().setDoubleClickReturnValue (true, defaultVal);
+        addAndMakeVisible (*knob);
+        return knob;
+    };
+
+    filterCutoffKnob = makeEffectKnob ("filterCutoff", "Cutoff", "Filter cutoff frequency", 8000.0);
+    filterResKnob    = makeEffectKnob ("filterRes",    "Reso",   "Filter resonance", 0.1);
+    chorusRateKnob   = makeEffectKnob ("chorusRate",   "Rate",   "Chorus LFO rate", 0.5);
+    chorusMixKnob    = makeEffectKnob ("chorusMix",    "Chorus", "Chorus wet/dry mix", 0.0);
+    reverbDecayKnob  = makeEffectKnob ("reverbDecay",  "Decay",  "Reverb decay time", 0.5);
+    reverbDampKnob   = makeEffectKnob ("reverbDamp",   "Damp",   "Reverb high-freq damping", 0.4);
+    reverbMixKnob    = makeEffectKnob ("reverbMix",    "Reverb", "Reverb wet/dry mix", 0.25);
+
     startTimerHz (30);
 }
 
 JoychordEditor::~JoychordEditor()
 {
     masterVolumeKnob->getSlider().setLookAndFeel (nullptr);
+
+    // Clear LnF on effect knobs
+    auto clearLnF = [](std::unique_ptr<gm::Knob>& k) {
+        if (k) k->getSlider().setLookAndFeel (nullptr);
+    };
+    clearLnF (filterCutoffKnob); clearLnF (filterResKnob);
+    clearLnF (chorusRateKnob);   clearLnF (chorusMixKnob);
+    clearLnF (reverbDecayKnob);  clearLnF (reverbDampKnob); clearLnF (reverbMixKnob);
+
     setLookAndFeel (nullptr);
     meterL.stopMetering();
     meterR.stopMetering();
@@ -245,12 +279,19 @@ void JoychordEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff00ccff));
     g.drawText ("Joychord", 0, titleY, getWidth(), titleH, juce::Justification::centred);
 
-    // Section divider between controls and gamepad area
-    int dividerY = 230;
+    // Section divider between controls and effects
+    int dividerY = 210;
     g.setColour (juce::Colour (0xff303040));
     g.drawHorizontalLine (dividerY, 16.0f, (float)(getWidth() - 16));
     g.setColour (juce::Colour (0xff101018));
     g.drawHorizontalLine (dividerY + 1, 16.0f, (float)(getWidth() - 16));
+
+    // Section divider between effects and gamepad area
+    int dividerY2 = 310;
+    g.setColour (juce::Colour (0xff303040));
+    g.drawHorizontalLine (dividerY2, 16.0f, (float)(getWidth() - 16));
+    g.setColour (juce::Colour (0xff101018));
+    g.drawHorizontalLine (dividerY2 + 1, 16.0f, (float)(getWidth() - 16));
 
     // Status bar background
     auto statusArea = getLocalBounds().removeFromBottom (24);
@@ -290,7 +331,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // Face buttons (right side) -- Xbox diamond
     int faceCx = getWidth() / 2 + 70;
-    int faceCy = 310;
+    int faceCy = 390;
     drawBtn (faceCx,              faceCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
     drawBtn (faceCx - spacing,    faceCy,           "X",  btnX, juce::Colour (0xff0066cc));
     drawBtn (faceCx + spacing,    faceCy,           "B",  btnB, juce::Colour (0xffcc2200));
@@ -298,7 +339,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // D-pad (left side) -- cross layout
     int dpadCx = getWidth() / 2 - 70;
-    int dpadCy = 310;
+    int dpadCy = 390;
     int ds = 22;
     int dr = 14;
     auto grey = juce::Colour (0xff666688);
@@ -308,7 +349,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawBtn (dpadCx,       dpadCy + ds, "D",  dDown,  grey, dr);
 
     // Shoulders (top of button area)
-    int shoulderY = 275;
+    int shoulderY = 355;
     drawBtn (dpadCx - 10, shoulderY, "LB", lb, juce::Colour (0xffff4400), 14);
     drawBtn (faceCx + 10, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 14);
 
@@ -389,8 +430,32 @@ void JoychordEditor::resized()
     strumLabel.setBounds  (col1X, curY, labelW, rowH);
     strumSlider.setBounds (col1X + labelW, curY, boxW, rowH);
 
-    curY += rowH + 16;
-    
+    curY += rowH + 10;
+
+    // Effects section label + knob row
+    effectsLabel.setBounds (col1X, curY, 60, 14);
+    curY += 16;
+
+    int knobW = 58;
+    int knobH = 74;  // knob + label + value
+    int knobGap = 8;
+    int knobStartX = col1X;
+
+    auto placeKnob = [&](std::unique_ptr<gm::Knob>& knob, int index) {
+        if (knob)
+            knob->setBounds (knobStartX + index * (knobW + knobGap), curY, knobW, knobH);
+    };
+
+    placeKnob (filterCutoffKnob, 0);
+    placeKnob (filterResKnob,    1);
+    placeKnob (chorusRateKnob,   2);
+    placeKnob (chorusMixKnob,    3);
+    placeKnob (reverbDecayKnob,  4);
+    placeKnob (reverbDampKnob,   5);
+    placeKnob (reverbMixKnob,    6);
+
+    curY += knobH + 8;
+
     // Remaining area
     auto remainingArea = getLocalBounds().withTrimmedTop (curY).reduced (16, 0);
 
@@ -401,16 +466,16 @@ void JoychordEditor::resized()
     int meterW = 14;
     int meterH = 120;
     int meterX = getWidth() - 40;
-    int meterY = 260;
+    int meterY = 340;
     meterL.setBounds (meterX, meterY, meterW, meterH);
     meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
 
     // Master Volume knob (above meters)
     int knobSize = 64;
-    int knobX = meterX - (knobSize / 2) + meterW;  // centered over meter pair
-    int knobY = meterY - knobSize - 8;
+    int knobXv = meterX - (knobSize / 2) + meterW;  // centered over meter pair
+    int knobYv = meterY - knobSize - 8;
     if (masterVolumeKnob)
-        masterVolumeKnob->setBounds (knobX, knobY, knobSize, knobSize + 20);  // +20 for label/value
+        masterVolumeKnob->setBounds (knobXv, knobYv, knobSize, knobSize + 20);  // +20 for label/value
 
     // Status at bottom
     statusLabel.setBounds (getLocalBounds().removeFromBottom (24).reduced (16, 0));
