@@ -144,9 +144,9 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     meterR.startMetering();
 
 
-    // Master Volume knob (LED Ladder style)
+    // Master Volume knob
     masterVolumeKnob = std::make_unique<gm::Knob> (processor.apvts, "masterVolume", "Volume", "Master output volume");
-    masterVolumeKnob->getSlider().setLookAndFeel (&ledLadderLnF);
+    masterVolumeKnob->setStyle (gm::KnobStyle::LedLadder);
     masterVolumeKnob->getSlider().setDoubleClickReturnValue (true, 0.0);  // double-click resets to 0 dB
     addAndMakeVisible (*masterVolumeKnob);
 
@@ -157,11 +157,11 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     effectsLabel.setColour (juce::Label::textColourId, juce::Colour (0xff00ccff));
     addAndMakeVisible (effectsLabel);
 
-    // Effects knobs (LED Ladder style, neon cyan)
+    // Effects knobs (NeonArc style)
     auto makeEffectKnob = [&](const juce::String& paramId, const juce::String& label,
                               const juce::String& tooltip, double defaultVal) {
         auto knob = std::make_unique<gm::Knob> (processor.apvts, paramId, label, tooltip);
-        knob->getSlider().setLookAndFeel (&ledLadderLnF);
+        knob->setStyle (gm::KnobStyle::NeonArc);
         knob->getSlider().setDoubleClickReturnValue (true, defaultVal);
         addAndMakeVisible (*knob);
         return knob;
@@ -180,16 +180,6 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
 JoychordEditor::~JoychordEditor()
 {
-    masterVolumeKnob->getSlider().setLookAndFeel (nullptr);
-
-    // Clear LnF on effect knobs
-    auto clearLnF = [](std::unique_ptr<gm::Knob>& k) {
-        if (k) k->getSlider().setLookAndFeel (nullptr);
-    };
-    clearLnF (filterCutoffKnob); clearLnF (filterResKnob);
-    clearLnF (chorusRateKnob);   clearLnF (chorusMixKnob);
-    clearLnF (reverbDecayKnob);  clearLnF (reverbDampKnob); clearLnF (reverbMixKnob);
-
     setLookAndFeel (nullptr);
     meterL.stopMetering();
     meterR.stopMetering();
