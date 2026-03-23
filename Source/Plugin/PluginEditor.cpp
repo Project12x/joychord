@@ -12,7 +12,6 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     typo.setInterBold     (juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize));
     typo.setJetBrainsMono (juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize));
 
-    setSize (520, 560);
 
     // Apply Joychord theme (DarkMetallic + Neon combos) with neon cyan accent
     setLookAndFeel (&darkTheme);
@@ -97,16 +96,10 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     synthModeAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         processor.apvts, "synthMode", synthModeBox);
 
-    // Strum Speed slider
-    strumLabel.setText ("Strum (ms)", juce::dontSendNotification);
-    strumLabel.setJustificationType (juce::Justification::centredRight);
-    addAndMakeVisible (strumLabel);
-
-    strumSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    strumSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 40, 20);
-    addAndMakeVisible (strumSlider);
-    strumAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        processor.apvts, "strumSpeed", strumSlider);
+    // Strum Speed slider (ghostmoon HSlider)
+    strumSlider = std::make_unique<gm::HSlider> (
+        processor.apvts, "strumSpeed", "Strum (ms)", "0", "200", "Strum delay between chord notes");
+    addAndMakeVisible (*strumSlider);
 
     // Load SFZ Button
     addAndMakeVisible (loadSfzBtn);
@@ -157,8 +150,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     effectsLabel.setColour (juce::Label::textColourId, juce::Colour (0xff00ccff));
     addAndMakeVisible (effectsLabel);
 
-    // Effects knobs (NeonArc style)
-    auto makeEffectKnob = [&](const juce::String& paramId, const juce::String& label,
+    // Macro knobs on main window (NeonArc style)
+    auto makeMacroKnob = [&](const juce::String& paramId, const juce::String& label,
                               const juce::String& tooltip, double defaultVal) {
         auto knob = std::make_unique<gm::Knob> (processor.apvts, paramId, label, tooltip);
         knob->setStyle (gm::KnobStyle::NeonArc);
@@ -167,14 +160,21 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         return knob;
     };
 
-    filterCutoffKnob = makeEffectKnob ("filterCutoff", "Cutoff", "Filter cutoff frequency", 8000.0);
-    filterResKnob    = makeEffectKnob ("filterRes",    "Reso",   "Filter resonance", 0.1);
-    chorusRateKnob   = makeEffectKnob ("chorusRate",   "Rate",   "Chorus LFO rate", 0.5);
-    chorusMixKnob    = makeEffectKnob ("chorusMix",    "Chorus", "Chorus wet/dry mix", 0.0);
-    reverbDecayKnob  = makeEffectKnob ("reverbDecay",  "Decay",  "Reverb decay time", 0.5);
-    reverbDampKnob   = makeEffectKnob ("reverbDamp",   "Damp",   "Reverb high-freq damping", 0.4);
-    reverbMixKnob    = makeEffectKnob ("reverbMix",    "Reverb", "Reverb wet/dry mix", 0.25);
+    reverbMixKnob    = makeMacroKnob ("reverbMix",    "Reverb", "Reverb wet/dry mix", 0.25);
+    filterCutoffKnob = makeMacroKnob ("filterCutoff", "Cutoff", "Filter cutoff frequency", 8000.0);
 
+    // FX drawer button
+    fxDrawerBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff222230));
+    fxDrawerBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff00cccc));
+    fxDrawerBtn.onClick = [this] { toggleDrawer(); };
+    addAndMakeVisible (fxDrawerBtn);
+
+    // Effects drawer (created but initially hidden)
+    effectsDrawer = std::make_unique<EffectsDrawer> (processor.apvts);
+    addAndMakeVisible (*effectsDrawer);
+    effectsDrawer->setVisible (false);
+
+    setSize (mainWidth, 560);  // MUST be last
     startTimerHz (30);
 }
 
@@ -417,56 +417,60 @@ void JoychordEditor::resized()
     curY += rowH + 6;
 
     // Row 5
-    strumLabel.setBounds  (col1X, curY, labelW, rowH);
-    strumSlider.setBounds (col1X + labelW, curY, boxW, rowH);
+    if (strumSlider)
+        strumSlider->setBounds (col1X, curY, labelW + boxW, 40);
 
-    curY += rowH + 10;
+    curY += 40 + 4;
 
-    // Effects section label + knob row
+    // Effects section label + macro knobs
     effectsLabel.setBounds (col1X, curY, 60, 14);
     curY += 16;
 
-    int knobW = 58;
-    int knobH = 74;  // knob + label + value
-    int knobGap = 8;
+    int knobW = 70;
+    int knobH = 84;
+    int knobGap = 12;
     int knobStartX = col1X;
 
-    auto placeKnob = [&](std::unique_ptr<gm::Knob>& knob, int index) {
-        if (knob)
-            knob->setBounds (knobStartX + index * (knobW + knobGap), curY, knobW, knobH);
-    };
+    // 3 macro knobs: Volume, Reverb, Cutoff
+    if (masterVolumeKnob)
+        masterVolumeKnob->setBounds (knobStartX, curY, knobW, knobH);
+    if (reverbMixKnob)
+        reverbMixKnob->setBounds (knobStartX + 1 * (knobW + knobGap), curY, knobW, knobH);
+    if (filterCutoffKnob)
+        filterCutoffKnob->setBounds (knobStartX + 2 * (knobW + knobGap), curY, knobW, knobH);
 
-    placeKnob (filterCutoffKnob, 0);
-    placeKnob (filterResKnob,    1);
-    placeKnob (chorusRateKnob,   2);
-    placeKnob (chorusMixKnob,    3);
-    placeKnob (reverbDecayKnob,  4);
-    placeKnob (reverbDampKnob,   5);
-    placeKnob (reverbMixKnob,    6);
+    // FX drawer button (right of macro knobs)
+    fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), curY + 20, 40, 40);
 
     curY += knobH + 8;
 
     // Remaining area
-    auto remainingArea = getLocalBounds().withTrimmedTop (curY).reduced (16, 0);
+    auto remainingArea = getLocalBounds().withWidth (mainWidth).withTrimmedTop (curY).reduced (16, 0);
 
     // Chord display
     chordLabel.setBounds (remainingArea.removeFromTop (40));
 
-    // LED Meters (right side of gamepad area)
+    // LED Meters (right side of main area)
     int meterW = 14;
     int meterH = 120;
-    int meterX = getWidth() - 40;
+    int meterX = mainWidth - 40;
     int meterY = 340;
     meterL.setBounds (meterX, meterY, meterW, meterH);
     meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
 
-    // Master Volume knob (above meters)
-    int knobSize = 64;
-    int knobXv = meterX - (knobSize / 2) + meterW;  // centered over meter pair
-    int knobYv = meterY - knobSize - 8;
-    if (masterVolumeKnob)
-        masterVolumeKnob->setBounds (knobXv, knobYv, knobSize, knobSize + 20);  // +20 for label/value
-
     // Status at bottom
-    statusLabel.setBounds (getLocalBounds().removeFromBottom (24).reduced (16, 0));
+    statusLabel.setBounds (getLocalBounds().withWidth (mainWidth).removeFromBottom (24).reduced (16, 0));
+
+    // Effects drawer (right side panel)
+    if (effectsDrawer)
+        effectsDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
+}
+
+void JoychordEditor::toggleDrawer()
+{
+    drawerOpen = !drawerOpen;
+    int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
+    effectsDrawer->setVisible (drawerOpen);
+    setSize (targetW, getHeight());
+    fxDrawerBtn.setButtonText (drawerOpen ? "<<" : "FX");
 }

@@ -6,6 +6,9 @@
 #include "LEDMeter.h"
 #include "Knob.h"
 #include "KnobStyles.h"
+#include "HSlider.h"
+#include "SliderStyles.h"
+#include "EffectsDrawer.h"
 
 // Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
 struct JoychordTheme : public gm::DarkMetallicTheme {
@@ -23,6 +26,12 @@ struct JoychordTheme : public gm::DarkMetallicTheme {
         gm::combos::drawThemedPopupMenuItem (g, area, isSep, isActive, isHL, isTicked,
                                               hasSub, text, shortcut, icon, textCol);
     }
+    void drawLinearSlider (juce::Graphics& g, int x, int y, int w, int h,
+                           float sliderPos, float minPos, float maxPos,
+                           juce::Slider::SliderStyle style, juce::Slider& slider) override {
+        gm::sliders::drawPillTrackSlider (g, x, y, w, h, sliderPos, minPos, maxPos,
+                                          style, slider, juce::Colour (0xff00ccff));
+    }
 };
 
 class JoychordEditor : public juce::AudioProcessorEditor,
@@ -37,6 +46,7 @@ public:
 
 private:
     void timerCallback() override;
+    void toggleDrawer();
 
     JoychordProcessor& processor;
 
@@ -44,8 +54,7 @@ private:
     juce::ComboBox keyBox, scaleBox, voicingBox, octaveBox, synthModeBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> keyAttach, scaleAttach, voicingAttach, synthModeAttach;
 
-    juce::Slider strumSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> strumAttach;
+    std::unique_ptr<gm::HSlider> strumSlider;
 
     juce::TextButton loadSfzBtn { "Load SFZ..." };
 
@@ -62,7 +71,7 @@ private:
     juce::Label statusLabel;
 
     // Section labels
-    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel, synthModeLabel, strumLabel;
+    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel, synthModeLabel;
 
     // Button state
     bool btnA = false, btnB = false, btnX = false, btnY = false;
@@ -74,15 +83,20 @@ private:
     JoychordTheme darkTheme;
     gm::LEDMeter meterL, meterR;
 
+    // Main window macro knobs
     std::unique_ptr<gm::Knob> masterVolumeKnob;
-
-    // Effects knobs
-    std::unique_ptr<gm::Knob> reverbDecayKnob, reverbDampKnob, reverbMixKnob;
-    std::unique_ptr<gm::Knob> filterCutoffKnob, filterResKnob;
-    std::unique_ptr<gm::Knob> chorusRateKnob, chorusMixKnob;
+    std::unique_ptr<gm::Knob> reverbMixKnob;
+    std::unique_ptr<gm::Knob> filterCutoffKnob;
 
     // Section label for effects
     juce::Label effectsLabel;
+
+    // Effects drawer
+    juce::TextButton fxDrawerBtn { "FX" };
+    std::unique_ptr<EffectsDrawer> effectsDrawer;
+    bool drawerOpen = false;
+    static constexpr int mainWidth = 520;
+    static constexpr int drawerWidth = 180;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };

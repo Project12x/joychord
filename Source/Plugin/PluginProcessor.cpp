@@ -102,6 +102,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
         juce::ParameterID ("chorusMix", 1), "Chorus Mix",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
 
+    // Effect enable toggles
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("filterEnabled", 1), "Filter Enabled", true));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("chorusEnabled", 1), "Chorus Enabled", false));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("reverbEnabled", 1), "Reverb Enabled", true));
+
     return layout;
 }
 
@@ -567,6 +575,10 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         auto* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
         int numSamples = buffer.getNumSamples();
 
+        bool filtOn = apvts.getRawParameterValue ("filterEnabled")->load() > 0.5f;
+        bool chOn   = apvts.getRawParameterValue ("chorusEnabled")->load() > 0.5f;
+        bool rvOn   = apvts.getRawParameterValue ("reverbEnabled")->load() > 0.5f;
+
         for (int i = 0; i < numSamples; ++i)
         {
             // Smooth all parameters
@@ -579,15 +591,18 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             float schMix   = smoothChorusMix.process (chMix);
 
             // 1. Filter (MoogLadder LP24)
-            filterL.setFreq (static_cast<double> (sfCut));
-            filterL.setRes (static_cast<double> (sfRes * 1.8));
-            filterR.setFreq (static_cast<double> (sfCut));
-            filterR.setRes (static_cast<double> (sfRes * 1.8));
-            L[i] = filterL.process (L[i]);
-            if (R) R[i] = filterR.process (R[i]);
+            if (filtOn)
+            {
+                filterL.setFreq (static_cast<double> (sfCut));
+                filterL.setRes (static_cast<double> (sfRes * 1.8));
+                filterR.setFreq (static_cast<double> (sfCut));
+                filterR.setRes (static_cast<double> (sfRes * 1.8));
+                L[i] = filterL.process (L[i]);
+                if (R) R[i] = filterR.process (R[i]);
+            }
 
             // 2. Chorus
-            if (schMix > 0.001f)
+            if (chOn && schMix > 0.001f)
             {
                 chorus.setRate (schRate);
                 chorus.setMix (schMix);
@@ -596,7 +611,7 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             }
 
             // 3. Reverb (PlateReverb)
-            if (srvMix > 0.001f)
+            if (rvOn && srvMix > 0.001f)
             {
                 reverb.setDecay (srvDecay);
                 reverb.setDamping (srvDamp);
