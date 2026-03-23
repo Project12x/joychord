@@ -1,24 +1,18 @@
 #include "PluginEditor.h"
 #include <BinaryData.h>
-#include "Typography.h"
 
 static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
 
 JoychordEditor::JoychordEditor (JoychordProcessor& p)
-    : AudioProcessorEditor (&p), processor (p),
-      darkTheme (
-          juce::Typeface::createSystemTypefaceFor (BinaryData::InterRegular_ttf, BinaryData::InterRegular_ttfSize),
-          juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize),
-          juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize)
-      )
+    : AudioProcessorEditor (&p), processor (p)
 {
-    setSize (520, 480);
-
-    // Init Typography singleton with embedded fonts
+    // Init Typography singleton with embedded fonts (must happen before setSize triggers paint)
     auto& typo = gm::Typography::getInstance();
     typo.setInterRegular  (juce::Typeface::createSystemTypefaceFor (BinaryData::InterRegular_ttf, BinaryData::InterRegular_ttfSize));
     typo.setInterBold     (juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize));
     typo.setJetBrainsMono (juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize));
+
+    setSize (520, 480);
 
     // Apply ghostmoon dark metallic theme with neon cyan accent
     setLookAndFeel (&darkTheme);
@@ -243,7 +237,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // Title
     g.setColour (juce::Colour (0xff00ccff));  // Neon cyan
-    g.setFont (gm::Typography::getInstance().getTitleFont (22.0f));
+    g.setFont (darkTheme.getInterFont (22.0f, true));
     g.drawText ("Joychord", 0, 8, getWidth(), 28, juce::Justification::centred);
 
     // ── Button indicators ──
