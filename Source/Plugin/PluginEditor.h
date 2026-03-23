@@ -2,9 +2,28 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "DarkMetallicTheme.h"
+#include "ComboBoxStyles.h"
 #include "LEDMeter.h"
 #include "Knob.h"
 #include "KnobStyles.h"
+
+// Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
+struct JoychordTheme : public gm::DarkMetallicTheme {
+    void drawComboBox (juce::Graphics& g, int w, int h, bool down,
+                       int bx, int by, int bw, int bh, juce::ComboBox& cb) override {
+        gm::combos::drawNeonComboBox (g, w, h, down, bx, by, bw, bh, cb);
+    }
+    void drawPopupMenuBackground (juce::Graphics& g, int w, int h) override {
+        gm::combos::drawDarkPopupBackground (g, w, h);
+    }
+    void drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<int>& area,
+                            bool isSep, bool isActive, bool isHL, bool isTicked,
+                            bool hasSub, const juce::String& text, const juce::String& shortcut,
+                            const juce::Drawable* icon, const juce::Colour* textCol) override {
+        gm::combos::drawThemedPopupMenuItem (g, area, isSep, isActive, isHL, isTicked,
+                                              hasSub, text, shortcut, icon, textCol);
+    }
+};
 
 class JoychordEditor : public juce::AudioProcessorEditor,
                        private juce::Timer
@@ -52,7 +71,7 @@ private:
     bool connected = false;
 
     // Ghostmoon UI
-    gm::DarkMetallicTheme darkTheme;
+    JoychordTheme darkTheme;
     gm::LEDMeter meterL, meterR;
 
     // LED Ladder knob LookAndFeel for master volume

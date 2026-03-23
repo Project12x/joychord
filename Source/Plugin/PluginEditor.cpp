@@ -14,9 +14,9 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     setSize (520, 480);
 
-    // Apply ghostmoon dark metallic theme with neon cyan accent
+    // Apply Joychord theme (DarkMetallic + Neon combos) with neon cyan accent
     setLookAndFeel (&darkTheme);
-    darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));  // Neon cyan accent
+    darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));
 
     // Key dropdown
     keyLabel.setText ("Key", juce::dontSendNotification);
@@ -122,16 +122,16 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
 
 
-    // Chord display
+    // Chord display — Typography bold
     chordLabel.setText ("---", juce::dontSendNotification);
-    chordLabel.setFont (juce::FontOptions (36.0f));
+    chordLabel.setFont (gm::Typography::getInstance().getHeaderFont (36.0f));
     chordLabel.setJustificationType (juce::Justification::centred);
     chordLabel.setColour (juce::Label::textColourId, juce::Colour (0xffe0e0ff));
     addAndMakeVisible (chordLabel);
 
-    // Status
+    // Status — Typography regular
     statusLabel.setText ("Controller: not connected", juce::dontSendNotification);
-    statusLabel.setFont (juce::FontOptions (12.0f));
+    statusLabel.setFont (gm::Typography::getInstance().getLabelFont (12.0f));
     statusLabel.setJustificationType (juce::Justification::centredLeft);
     statusLabel.setColour (juce::Label::textColourId, juce::Colour (0xff808080));
     addAndMakeVisible (statusLabel);
@@ -233,25 +233,58 @@ static juce::String getRoleLabel (const ButtonRole& role)
 
 void JoychordEditor::paint (juce::Graphics& g)
 {
+    auto& typo = gm::Typography::getInstance();
     g.fillAll (findColour (gm::DarkMetallicTheme::bgColourId));
 
-    // Title
-    g.setColour (juce::Colour (0xff00ccff));  // Neon cyan
-    g.setFont (darkTheme.getInterFont (22.0f, true));
-    g.drawText ("Joychord", 0, 8, getWidth(), 28, juce::Justification::centred);
+    // Title with shadow glow
+    auto titleY = 8;
+    auto titleH = 28;
+    g.setFont (typo.getHeaderFont (22.0f));
+    g.setColour (juce::Colour (0xff00ccff).withAlpha (0.25f));
+    g.drawText ("Joychord", 1, titleY + 1, getWidth(), titleH, juce::Justification::centred);
+    g.setColour (juce::Colour (0xff00ccff));
+    g.drawText ("Joychord", 0, titleY, getWidth(), titleH, juce::Justification::centred);
 
-    // ── Button indicators ──
+    // Section divider between controls and gamepad area
+    int dividerY = 230;
+    g.setColour (juce::Colour (0xff303040));
+    g.drawHorizontalLine (dividerY, 16.0f, (float)(getWidth() - 16));
+    g.setColour (juce::Colour (0xff101018));
+    g.drawHorizontalLine (dividerY + 1, 16.0f, (float)(getWidth() - 16));
+
+    // Status bar background
+    auto statusArea = getLocalBounds().removeFromBottom (24);
+    g.setColour (juce::Colour (0xff101018));
+    g.fillRect (statusArea);
+    g.setColour (juce::Colour (0xff303040));
+    g.drawHorizontalLine (statusArea.getY(), 0.0f, (float)getWidth());
+
+    // ── Gamepad button indicators ──
 
     int r = 18;
     int spacing = 26;
 
     auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 18)
     {
-        g.setColour (pressed ? col : col.withAlpha (0.2f));
-        g.fillEllipse ((float)(x - radius), (float)(y - radius), (float)(radius * 2), (float)(radius * 2));
-        g.setColour (juce::Colours::white);
-        g.drawEllipse ((float)(x - radius), (float)(y - radius), (float)(radius * 2), (float)(radius * 2), 1.5f);
-        g.setFont (juce::FontOptions (12.0f));
+        float fx = (float)x, fy = (float)y, fr = (float)radius;
+
+        // Outer glow when pressed
+        if (pressed) {
+            g.setColour (col.withAlpha (0.15f));
+            g.fillEllipse (fx - fr - 4.0f, fy - fr - 4.0f, (fr + 4.0f) * 2.0f, (fr + 4.0f) * 2.0f);
+        }
+
+        // Button fill
+        g.setColour (pressed ? col : col.withAlpha (0.15f));
+        g.fillEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f);
+
+        // Outline — accent-tinted when pressed, subtle when idle
+        g.setColour (pressed ? col.brighter (0.3f) : juce::Colour (0xff505060));
+        g.drawEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f, 1.5f);
+
+        // Label
+        g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff909090));
+        g.setFont (typo.getLabelFont (11.0f));
         g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
     };
 
@@ -274,13 +307,13 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawBtn (dpadCx + ds,  dpadCy,      "R",  dRight, grey, dr);
     drawBtn (dpadCx,       dpadCy + ds, "D",  dDown,  grey, dr);
 
-    // Shoulders (top of button area) - Bright highlight when active
+    // Shoulders (top of button area)
     int shoulderY = 275;
-    drawBtn (dpadCx - 10, shoulderY, "LB", lb, juce::Colour (0xffff4400), 14); // Bright orange/red
-    drawBtn (faceCx + 10, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 14); // Bright cyan
+    drawBtn (dpadCx - 10, shoulderY, "LB", lb, juce::Colour (0xffff4400), 14);
+    drawBtn (faceCx + 10, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 14);
 
-    // Degree labels
-    g.setFont (juce::FontOptions (10.0f));
+    // Degree labels — mono font for data
+    g.setFont (typo.getValueFont (10.0f));
     g.setColour (juce::Colour (0xffa0a0b0));
 
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
@@ -300,8 +333,6 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawRoleLabel (ButtonId::DLeft,  dpadCx - ds - r - 32,      dpadCy - 6,      juce::Justification::centredRight);
     drawRoleLabel (ButtonId::DRight, dpadCx + ds + r + 2,       dpadCy - 6,      juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::DDown,  dpadCx - r - 32,           dpadCy + ds - 6, juce::Justification::centredRight);
-
-    // Chord label glow is handled by the themed label — no manual path needed
 }
 
 void JoychordEditor::resized()
