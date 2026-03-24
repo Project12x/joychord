@@ -8,7 +8,12 @@
 #include "KnobStyles.h"
 #include "HSlider.h"
 #include "SliderStyles.h"
+#include "GmTextButton.h"
+#include "ThemeManager.h"
+#include "ComboSelector.h"
 #include "EffectsDrawer.h"
+#include "PresetManager.h"
+#include "ToastOverlay.h"
 
 // Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
 struct JoychordTheme : public gm::DarkMetallicTheme {
@@ -50,19 +55,15 @@ private:
 
     JoychordProcessor& processor;
 
-    // APVTS-attached controls
-    juce::ComboBox keyBox, scaleBox, voicingBox, octaveBox, synthModeBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> keyAttach, scaleAttach, voicingAttach, synthModeAttach;
+    // APVTS-attached controls (gm::ComboSelector — self-rendering)
+    gm::ComboSelector keySel, scaleSel, voicingSel, synthModeSel;
+
+    // Non-APVTS combos (manual onChange)
+    juce::ComboBox octaveBox, presetBox, gamepadIndexBox;
 
     std::unique_ptr<gm::HSlider> strumSlider;
 
     juce::TextButton loadSfzBtn { "Load SFZ..." };
-
-    // Preset selector
-    juce::ComboBox presetBox;
-
-    // Gamepad setup
-    juce::ComboBox gamepadIndexBox;
 
     // Chord display
     juce::Label chordLabel;
@@ -71,7 +72,7 @@ private:
     juce::Label statusLabel;
 
     // Section labels
-    juce::Label keyLabel, scaleLabel, voicingLabel, octaveLabel, presetLabel, gamepadLabel, synthModeLabel;
+    juce::Label octaveLabel, presetLabel, gamepadLabel;
 
     // Button state
     bool btnA = false, btnB = false, btnX = false, btnY = false;
@@ -92,11 +93,24 @@ private:
     juce::Label effectsLabel;
 
     // Effects drawer
-    juce::TextButton fxDrawerBtn { "FX" };
+    gm::GmTextButton fxDrawerBtn;
     std::unique_ptr<EffectsDrawer> effectsDrawer;
     bool drawerOpen = false;
-    static constexpr int mainWidth = 520;
+    static constexpr int mainWidth = 620;
+    static constexpr int sidebarWidth = 200;
     static constexpr int drawerWidth = 180;
+
+    // Preset system (gm::PresetManager — JSON, A/B, dirty detection)
+    std::unique_ptr<gm::PresetManager> presetMgr;
+    juce::ComboBox paramPresetBox;
+    juce::TextButton presetSaveBtn { "Save" };
+    juce::TextButton presetDeleteBtn { "Del" };
+    juce::TextButton presetPrevBtn { "<" };
+    juce::TextButton presetNextBtn { ">" };
+    gm::ToastOverlay toastOverlay;
+    void refreshPresetList();
+    void savePresetWithDialog();
+    void deleteCurrentPreset();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };

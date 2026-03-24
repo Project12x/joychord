@@ -88,6 +88,18 @@ FetchContent_MakeAvailable(googletest)
 set(GHOSTMOON_DIR "C:/Users/estee/Desktop/My Stuff/Code/Antigravity/ghostmoon")
 add_subdirectory("${GHOSTMOON_DIR}/dsp" ghostmoon_dsp_build)
 
+# ── nlohmann/json (needed by gm::PresetManager) ─────────────────────────────
+if(NOT TARGET nlohmann_json)
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.3
+        GIT_SHALLOW    TRUE
+    )
+    set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
 
 # ── ghostmoon UI framework ───────────────────────────────────────────────────
 # Provides gm:: UI components (DarkMetallicTheme, KnobStyles, LEDMeter, etc.)
@@ -113,6 +125,7 @@ juce_add_binary_data(JoychordFonts SOURCES
     Source/UI/Fonts/Inter-Regular.ttf
     Source/UI/Fonts/Inter-Bold.ttf
     Source/UI/Fonts/JetBrainsMono-Regular.ttf
+    Source/UI/Fonts/CormorantGaramond-Bold.ttf
 )
 
 # Force dynamic CRT on all JUCE-generated plugin subtargets (Standalone, VST3, SharedCode).
@@ -159,6 +172,7 @@ target_link_libraries(Joychord PRIVATE
     ghostmoon_dsp
     ghostmoon_ui
     JoychordFonts
+    nlohmann_json::nlohmann_json
     # XInput is a Windows system library
     $<$<PLATFORM_ID:Windows>:xinput>
     juce::juce_recommended_config_flags
@@ -180,6 +194,7 @@ if(MSVC)
     foreach(_target Joychord Joychord_Standalone Joychord_VST3)
         if(TARGET ${_target})
             target_link_options(${_target} PRIVATE /NODEFAULTLIB:libcmtd /NODEFAULTLIB:libcmt)
+            target_compile_options(${_target} PRIVATE /FS)
         endif()
     endforeach()
 endif()

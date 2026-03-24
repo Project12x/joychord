@@ -12,39 +12,28 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     typo.setInterBold     (juce::Typeface::createSystemTypefaceFor (BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize));
     typo.setJetBrainsMono (juce::Typeface::createSystemTypefaceFor (BinaryData::JetBrainsMonoRegular_ttf, BinaryData::JetBrainsMonoRegular_ttfSize));
 
+    // Classical serif font for chord display
+    typo.setDisplayFont (juce::Typeface::createSystemTypefaceFor (BinaryData::CormorantGaramondBold_ttf, BinaryData::CormorantGaramondBold_ttfSize));
+
 
     // Apply Joychord theme (DarkMetallic + Neon combos) with neon cyan accent
     setLookAndFeel (&darkTheme);
     darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));
 
-    // Key dropdown
-    keyLabel.setText ("Key", juce::dontSendNotification);
-    keyLabel.setJustificationType (juce::Justification::centredRight);
-    addAndMakeVisible (keyLabel);
-    for (int i = 0; i < 12; ++i)
-        keyBox.addItem (kNoteNames[i], i + 1);
-    keyBox.setSelectedId (1, juce::dontSendNotification);
-    addAndMakeVisible (keyBox);
-    keyAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        processor.apvts, "key", keyBox);
+    // Key selector (gm::ComboSelector)
+    keySel.setup (processor.apvts, "key", "Key",
+                  juce::StringArray {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"});
+    addAndMakeVisible (keySel);
 
-    // Scale dropdown
-    scaleLabel.setText ("Scale", juce::dontSendNotification);
-    scaleLabel.setJustificationType (juce::Justification::centredRight);
-    addAndMakeVisible (scaleLabel);
-    scaleBox.addItemList (juce::StringArray {"Major", "Minor", "Dorian", "Mixolydian", "Phrygian", "Lydian", "Whole Tone"}, 1);
-    addAndMakeVisible (scaleBox);
-    scaleAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        processor.apvts, "scale", scaleBox);
+    // Scale selector
+    scaleSel.setup (processor.apvts, "scale", "Scale",
+                    juce::StringArray {"Major", "Minor", "Dorian", "Mixolydian", "Phrygian", "Lydian", "Whole Tone"});
+    addAndMakeVisible (scaleSel);
 
-    // Voicing dropdown
-    voicingLabel.setText ("Voicing", juce::dontSendNotification);
-    voicingLabel.setJustificationType (juce::Justification::centredRight);
-    addAndMakeVisible (voicingLabel);
-    voicingBox.addItemList (juce::StringArray {"Close", "Drop-2"}, 1);
-    addAndMakeVisible (voicingBox);
-    voicingAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        processor.apvts, "voicing", voicingBox);
+    // Voicing selector
+    voicingSel.setup (processor.apvts, "voicing", "Voicing",
+                      juce::StringArray {"Close", "Drop-2"});
+    addAndMakeVisible (voicingSel);
 
     // Octave dropdown
     octaveLabel.setText ("Octave", juce::dontSendNotification);
@@ -87,14 +76,10 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
     addAndMakeVisible (gamepadIndexBox);
 
-    // Synth Mode dropdown
-    synthModeLabel.setText ("Synth", juce::dontSendNotification);
-    synthModeLabel.setJustificationType (juce::Justification::centredRight);
-    addAndMakeVisible (synthModeLabel);
-    synthModeBox.addItemList (juce::StringArray {"MIDI", "SYNTH", "PIANO", "SFZ"}, 1);
-    addAndMakeVisible (synthModeBox);
-    synthModeAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        processor.apvts, "synthMode", synthModeBox);
+    // Synth Mode selector
+    synthModeSel.setup (processor.apvts, "synthMode", "Synth",
+                        juce::StringArray {"MIDI", "SYNTH", "PIANO", "SFZ"});
+    addAndMakeVisible (synthModeSel);
 
     // Strum Speed slider (ghostmoon HSlider)
     strumSlider = std::make_unique<gm::HSlider> (
@@ -115,12 +100,9 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
 
 
-    // Chord display — Typography bold
-    chordLabel.setText ("---", juce::dontSendNotification);
-    chordLabel.setFont (gm::Typography::getInstance().getHeaderFont (36.0f));
-    chordLabel.setJustificationType (juce::Justification::centred);
-    chordLabel.setColour (juce::Label::textColourId, juce::Colour (0xffe0e0ff));
-    addAndMakeVisible (chordLabel);
+    // Chord display — Classical serif (Cormorant Garamond Bold)
+    // Painted directly in paint() for full font control
+    chordLabel.setVisible (false);
 
     // Status — Typography regular
     statusLabel.setText ("Controller: not connected", juce::dontSendNotification);
@@ -163,10 +145,10 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     reverbMixKnob    = makeMacroKnob ("reverbMix",    "Reverb", "Reverb wet/dry mix", 0.25);
     filterCutoffKnob = makeMacroKnob ("filterCutoff", "Cutoff", "Filter cutoff frequency", 8000.0);
 
-    // FX drawer button
-    fxDrawerBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff222230));
-    fxDrawerBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff00cccc));
+    // FX drawer button (ghostmoon styled)
+    fxDrawerBtn.setup ("FX");
     fxDrawerBtn.onClick = [this] { toggleDrawer(); };
+    fxDrawerBtn.getButton().onClick = [this] { toggleDrawer(); };
     addAndMakeVisible (fxDrawerBtn);
 
     // Effects drawer (created but initially hidden)
@@ -174,7 +156,49 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     addAndMakeVisible (*effectsDrawer);
     effectsDrawer->setVisible (false);
 
-    setSize (mainWidth, 560);  // MUST be last
+    // Preset system (gm::PresetManager - JSON, A/B, dirty detection)
+    presetMgr = std::make_unique<gm::PresetManager> (processor.apvts, "Wombletook", "Joychord");
+
+    // Hook RoleMap into preset serialization
+    presetMgr->onSerializeCustomState = [this]() -> nlohmann::json {
+        auto tree = processor.getRoleMap().toValueTree();
+        return {{ "roleMap", tree.toXmlString().toStdString() }};
+    };
+    presetMgr->onDeserializeCustomState = [this](const nlohmann::json& j) {
+        if (j.contains ("roleMap"))
+        {
+            auto xml = juce::XmlDocument::parse (juce::String (j["roleMap"].get<std::string>()));
+            if (xml)
+                processor.getRoleMap().fromValueTree (juce::ValueTree::fromXml (*xml));
+        }
+    };
+    presetMgr->scanPresets();
+
+    paramPresetBox.setTextWhenNothingSelected ("-- Presets --");
+    paramPresetBox.onChange = [this] {
+        int idx = paramPresetBox.getSelectedItemIndex();
+        if (idx >= 0 && presetMgr->loadPreset (idx))
+            toastOverlay.showToast ("Loaded: " + presetMgr->getCurrentPresetName(), gm::ToastOverlay::Type::Info, 1500);
+    };
+    addAndMakeVisible (paramPresetBox);
+
+    presetSaveBtn.onClick = [this] { savePresetWithDialog(); };
+    addAndMakeVisible (presetSaveBtn);
+
+    presetDeleteBtn.onClick = [this] { deleteCurrentPreset(); };
+    addAndMakeVisible (presetDeleteBtn);
+
+    presetPrevBtn.onClick = [this] { presetMgr->loadPreviousPreset(); refreshPresetList(); };
+    addAndMakeVisible (presetPrevBtn);
+
+    presetNextBtn.onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
+    addAndMakeVisible (presetNextBtn);
+
+    addAndMakeVisible (toastOverlay);
+
+    refreshPresetList();
+
+    setSize (mainWidth, 520);  // MUST be last
     startTimerHz (30);
 }
 
@@ -201,7 +225,7 @@ void JoychordEditor::timerCallback()
     connected = processor.gamepadConnected.load();
 
     // Only show Load SFZ button if SFZ (index 4) is selected
-    loadSfzBtn.setVisible (synthModeBox.getSelectedId() == 4);
+    loadSfzBtn.setVisible (static_cast<int>(processor.apvts.getParameterAsValue("synthMode").getValue()) == 3);
 
     // Set chord label with glow effect when playing
     if (processor.lastChordName.isNotEmpty())
@@ -260,208 +284,314 @@ void JoychordEditor::paint (juce::Graphics& g)
     auto& typo = gm::Typography::getInstance();
     g.fillAll (findColour (gm::DarkMetallicTheme::bgColourId));
 
-    // Title with shadow glow
-    auto titleY = 8;
-    auto titleH = 28;
-    g.setFont (typo.getHeaderFont (22.0f));
+    int canvasX = sidebarWidth;
+    int canvasW = mainWidth - sidebarWidth;
+    int statusH = 24;
+
+    // ── SIDEBAR BACKGROUND ──
+    auto sidebarArea = juce::Rectangle<int> (0, 0, sidebarWidth, getHeight() - statusH);
+    g.setColour (juce::Colour (0xff0a0a10));
+    g.fillRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f);
+
+    // Sidebar border
+    g.setColour (juce::Colour (0xff252535));
+    g.drawRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f, 1.0f);
+
+    // Sidebar drop shadow (right edge gradient)
+    {
+        juce::ColourGradient shadow (juce::Colour (0x30000000), (float)sidebarWidth, 0.0f,
+                                     juce::Colours::transparentBlack, (float)(sidebarWidth + 6), 0.0f, false);
+        g.setGradientFill (shadow);
+        g.fillRect (sidebarWidth, 0, 6, getHeight() - statusH);
+    }
+
+    // Sidebar section headers with subtle glow
+    auto drawSectionHeader = [&](const juce::String& text, int y) {
+        g.setFont (typo.getLabelFont (10.0f));
+        g.setColour (juce::Colour (0xff00cccc).withAlpha (0.2f));
+        g.drawText (text, 13, y + 1, sidebarWidth - 24, 14, juce::Justification::centredLeft);
+        g.setColour (juce::Colour (0xff00cccc));
+        g.drawText (text, 12, y, sidebarWidth - 24, 14, juce::Justification::centredLeft);
+    };
+
+    // Match resized() layout cursor to calculate separator positions
+    int sideRowH = 26, sideRowGap = 4, sideSecH = 14;
+    int paintSy = 8 + sideSecH + 4;   // after HARMONY header
+    paintSy += sideRowH + 6;           // preset bar
+    int harmonyStartY = paintSy;
+    paintSy += (sideRowH + sideRowGap) * 4; // 4 harmony rows
+    int harmonyEndY = paintSy;
+
+    drawSectionHeader ("HARMONY", 8);
+
+    // Gradient divider after harmony section
+    {
+        juce::ColourGradient divGrad (juce::Colours::transparentBlack, 10.0f, (float)harmonyEndY,
+                                      juce::Colour (0xff404055), (float)(sidebarWidth / 2), (float)harmonyEndY, false);
+        divGrad.addColour (1.0, juce::Colours::transparentBlack);
+        g.setGradientFill (divGrad);
+        g.fillRect (10, harmonyEndY, sidebarWidth - 20, 1);
+    }
+
+    int perfHeaderY = harmonyEndY + 4;
+    drawSectionHeader ("PERFORMANCE", perfHeaderY);
+
+    // Gradient divider after performance section
+    int perfStartY = perfHeaderY + sideSecH;
+    int perfEndY = perfStartY + (sideRowH + sideRowGap) * 3 + 44 + sideRowH + 4 + 4;
+    {
+        juce::ColourGradient divGrad (juce::Colours::transparentBlack, 10.0f, (float)perfEndY,
+                                      juce::Colour (0xff404055), (float)(sidebarWidth / 2), (float)perfEndY, false);
+        divGrad.addColour (1.0, juce::Colours::transparentBlack);
+        g.setGradientFill (divGrad);
+        g.fillRect (10, perfEndY, sidebarWidth - 20, 1);
+    }
+
+    // ── CANVAS BACKGROUND ──
+    auto canvasArea = juce::Rectangle<int> (canvasX, 0, canvasW, getHeight() - statusH);
+    g.setColour (juce::Colour (0xff121218));
+    g.fillRect (canvasArea);
+
+    // Title with glow
+    g.setFont (typo.getHeaderFont (20.0f));
+    g.setColour (juce::Colour (0xff00ccff).withAlpha (0.12f));
+    g.drawText ("Joychord", canvasX + 2, 10, canvasW, 24, juce::Justification::centred);
     g.setColour (juce::Colour (0xff00ccff).withAlpha (0.25f));
-    g.drawText ("Joychord", 1, titleY + 1, getWidth(), titleH, juce::Justification::centred);
+    g.drawText ("Joychord", canvasX + 1, 9, canvasW, 24, juce::Justification::centred);
     g.setColour (juce::Colour (0xff00ccff));
-    g.drawText ("Joychord", 0, titleY, getWidth(), titleH, juce::Justification::centred);
+    g.drawText ("Joychord", canvasX, 8, canvasW, 24, juce::Justification::centred);
 
-    // Section divider between controls and effects
-    int dividerY = 210;
-    g.setColour (juce::Colour (0xff303040));
-    g.drawHorizontalLine (dividerY, 16.0f, (float)(getWidth() - 16));
-    g.setColour (juce::Colour (0xff101018));
-    g.drawHorizontalLine (dividerY + 1, 16.0f, (float)(getWidth() - 16));
+    // ── CHORD READOUT GLOW ──
+    // Soft bloom centered behind chord text, not full-width
+    if (processor.lastChordName.isNotEmpty())
+    {
+        float glowCx = (float)(canvasX + canvasW / 2);
+        float glowW = 220.0f;
+        float glowH = 100.0f;
+        auto chordGlow = juce::Rectangle<float> (glowCx - glowW / 2, 30.0f, glowW, glowH);
+        // Outer glow
+        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.06f));
+        g.fillRoundedRectangle (chordGlow.expanded (30.0f, 16.0f), 24.0f);
+        // Mid glow
+        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.08f));
+        g.fillRoundedRectangle (chordGlow.expanded (10.0f, 6.0f), 16.0f);
+        // Inner glow
+        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.05f));
+        g.fillRoundedRectangle (chordGlow, 10.0f);
+    }
 
-    // Section divider between effects and gamepad area
-    int dividerY2 = 310;
-    g.setColour (juce::Colour (0xff303040));
-    g.drawHorizontalLine (dividerY2, 16.0f, (float)(getWidth() - 16));
-    g.setColour (juce::Colour (0xff101018));
-    g.drawHorizontalLine (dividerY2 + 1, 16.0f, (float)(getWidth() - 16));
+    // ── CHORD TEXT (direct paint for guaranteed font control) ──
+    {
+        auto chordArea = juce::Rectangle<int> (canvasX, 20, canvasW, 150);
+        auto chordText = processor.lastChordName.isNotEmpty()
+                             ? processor.lastChordName
+                             : juce::String ("---");
+        auto chordCol  = processor.lastChordName.isNotEmpty()
+                             ? juce::Colour (0xffffffff)
+                             : juce::Colour (0xff606080);
 
-    // Status bar background
-    auto statusArea = getLocalBounds().removeFromBottom (24);
+        g.setFont (gm::Typography::getInstance().getClassicalDisplayFont (120.0f));
+        g.setColour (chordCol);
+        g.drawText (chordText, chordArea, juce::Justification::centred);
+    }
+    {
+        int sbY = getHeight() - statusH;
+        juce::ColourGradient shadowGrad (juce::Colours::transparentBlack, 0.0f, (float)(sbY - 6),
+                                         juce::Colour (0x28000000), 0.0f, (float)sbY, false);
+        g.setGradientFill (shadowGrad);
+        g.fillRect (0, sbY - 6, getWidth(), 6);
+    }
+    auto statusArea = getLocalBounds().removeFromBottom (statusH);
     g.setColour (juce::Colour (0xff101018));
     g.fillRect (statusArea);
     g.setColour (juce::Colour (0xff303040));
     g.drawHorizontalLine (statusArea.getY(), 0.0f, (float)getWidth());
 
-    // ── Gamepad button indicators ──
+    // ── GAMEPAD HUD (compact, in canvas) ──
+    int hudCx = canvasX + canvasW / 2;
+    int hudCy = 220;
+    int r = 15;
+    int spacing = 22;
 
-    int r = 18;
-    int spacing = 26;
-
-    auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 18)
+    auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 15)
     {
         float fx = (float)x, fy = (float)y, fr = (float)radius;
-
-        // Outer glow when pressed
         if (pressed) {
+            // 3-ring concentric glow
+            g.setColour (col.withAlpha (0.06f));
+            g.fillEllipse (fx - fr - 8.0f, fy - fr - 8.0f, (fr + 8.0f) * 2.0f, (fr + 8.0f) * 2.0f);
+            g.setColour (col.withAlpha (0.10f));
+            g.fillEllipse (fx - fr - 5.0f, fy - fr - 5.0f, (fr + 5.0f) * 2.0f, (fr + 5.0f) * 2.0f);
             g.setColour (col.withAlpha (0.15f));
-            g.fillEllipse (fx - fr - 4.0f, fy - fr - 4.0f, (fr + 4.0f) * 2.0f, (fr + 4.0f) * 2.0f);
+            g.fillEllipse (fx - fr - 3.0f, fy - fr - 3.0f, (fr + 3.0f) * 2.0f, (fr + 3.0f) * 2.0f);
         }
-
-        // Button fill
         g.setColour (pressed ? col : col.withAlpha (0.15f));
         g.fillEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f);
-
-        // Outline — accent-tinted when pressed, subtle when idle
         g.setColour (pressed ? col.brighter (0.3f) : juce::Colour (0xff505060));
         g.drawEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f, 1.5f);
-
-        // Label
         g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff909090));
-        g.setFont (typo.getLabelFont (11.0f));
+        g.setFont (typo.getLabelFont (10.0f));
         g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
     };
 
-    // Face buttons (right side) -- Xbox diamond
-    int faceCx = getWidth() / 2 + 70;
-    int faceCy = 390;
-    drawBtn (faceCx,              faceCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
-    drawBtn (faceCx - spacing,    faceCy,           "X",  btnX, juce::Colour (0xff0066cc));
-    drawBtn (faceCx + spacing,    faceCy,           "B",  btnB, juce::Colour (0xffcc2200));
-    drawBtn (faceCx,              faceCy + spacing, "A",  btnA, juce::Colour (0xff00aa44));
+    // Face buttons (right side)
+    int faceCx = hudCx + 55;
+    drawBtn (faceCx,              hudCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
+    drawBtn (faceCx - spacing,    hudCy,           "X",  btnX, juce::Colour (0xff0066cc));
+    drawBtn (faceCx + spacing,    hudCy,           "B",  btnB, juce::Colour (0xffcc2200));
+    drawBtn (faceCx,              hudCy + spacing, "A",  btnA, juce::Colour (0xff00aa44));
 
-    // D-pad (left side) -- cross layout
-    int dpadCx = getWidth() / 2 - 70;
-    int dpadCy = 390;
-    int ds = 22;
-    int dr = 14;
+    // D-pad (left side)
+    int dpadCx = hudCx - 55;
+    int ds = 18;
+    int dr = 12;
     auto grey = juce::Colour (0xff666688);
-    drawBtn (dpadCx,       dpadCy - ds, "U",  dUp,    grey, dr);
-    drawBtn (dpadCx - ds,  dpadCy,      "L",  dLeft,  grey, dr);
-    drawBtn (dpadCx + ds,  dpadCy,      "R",  dRight, grey, dr);
-    drawBtn (dpadCx,       dpadCy + ds, "D",  dDown,  grey, dr);
+    drawBtn (dpadCx,       hudCy - ds, "U",  dUp,    grey, dr);
+    drawBtn (dpadCx - ds,  hudCy,      "L",  dLeft,  grey, dr);
+    drawBtn (dpadCx + ds,  hudCy,      "R",  dRight, grey, dr);
+    drawBtn (dpadCx,       hudCy + ds, "D",  dDown,  grey, dr);
 
-    // Shoulders (top of button area)
-    int shoulderY = 355;
-    drawBtn (dpadCx - 10, shoulderY, "LB", lb, juce::Colour (0xffff4400), 14);
-    drawBtn (faceCx + 10, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 14);
+    // Shoulders
+    int shoulderY = hudCy - spacing - 30;
+    drawBtn (dpadCx, shoulderY, "LB", lb, juce::Colour (0xffff4400), 12);
+    drawBtn (faceCx, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 12);
 
-    // Degree labels — mono font for data
-    g.setFont (typo.getValueFont (10.0f));
+    // Degree labels
+    g.setFont (typo.getValueFont (9.0f));
     g.setColour (juce::Colour (0xffa0a0b0));
 
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
         juce::String labelStr = getRoleLabel (processor.getRoleMap().getRole (btnId));
         if (labelStr.isNotEmpty())
-            g.drawText (labelStr, x, y, 30, 12, just);
+            g.drawText (labelStr, x, y, 28, 11, just);
     };
 
-    // Face button degree labels
-    drawRoleLabel (ButtonId::Y, faceCx + r + 2,            faceCy - spacing - 6, juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 32, faceCy - 6,           juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  faceCy - 6,           juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::A, faceCx + r + 2,            faceCy + spacing - 6, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::Y, faceCx + r + 2,            hudCy - spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30, hudCy - 5,           juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  hudCy - 5,           juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::A, faceCx + r + 2,            hudCy + spacing - 5, juce::Justification::centredLeft);
 
-    // D-Pad modifier labels
-    drawRoleLabel (ButtonId::DUp,    dpadCx - r - 32,           dpadCy - ds - 6, juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DLeft,  dpadCx - ds - r - 32,      dpadCy - 6,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + ds + r + 2,       dpadCy - 6,      juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::DDown,  dpadCx - r - 32,           dpadCy + ds - 6, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DUp,    dpadCx - dr - 30,      hudCy - ds - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DLeft,  dpadCx - ds - dr - 30, hudCy - 5,      juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DRight, dpadCx + ds + dr + 2,  hudCy - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DDown,  dpadCx - dr - 30,      hudCy + ds - 5, juce::Justification::centredRight);
+
+    // ── Effects section gradient divider in canvas ──
+    int effectsDivY = 280;
+    {
+        float cx = (float)(canvasX + canvasW / 2);
+        float halfW = (float)(canvasW / 2 - 16);
+        juce::ColourGradient divGrad (juce::Colours::transparentBlack, cx - halfW, (float)effectsDivY,
+                                      juce::Colour (0xff505068), cx, (float)effectsDivY, false);
+        divGrad.addColour (1.0, juce::Colours::transparentBlack);
+        g.setGradientFill (divGrad);
+        g.fillRect (canvasX + 16, effectsDivY, canvasW - 32, 1);
+    }
+
 }
 
 void JoychordEditor::resized()
 {
-    auto area = getLocalBounds().reduced (16);
-    area.removeFromTop (36); // title
+    int statusH = 24;
+    int canvasX = sidebarWidth;
+    int canvasW = mainWidth - sidebarWidth;
 
-    auto labelW = 70;
-    auto boxW = 120;
-    auto gap = 30;
-
-    int col1X = area.getX();
-    int col2X = col1X + labelW + boxW + gap;
-
+    // ══════════════════════════════════════════
+    // SIDEBAR LAYOUT (left panel)
+    // ══════════════════════════════════════════
+    int sx = 10;
+    int sw = sidebarWidth - 20;
+    int labelW = 55;
+    int boxW = sw - labelW;
     int rowH = 26;
-    int curY = area.getY();
+    int rowGap = 4;
+    int sectionHeaderH = 14;
 
-    // Row 1
-    keyLabel.setBounds (col1X, curY, labelW, rowH);
-    keyBox.setBounds   (col1X + labelW, curY, boxW, rowH);
-    
-    presetLabel.setBounds     (col2X, curY, labelW, rowH);
-    presetBox.setBounds       (col2X + labelW, curY, boxW, rowH);
+    int sy = 8 + sectionHeaderH + 4; // after "HARMONY" header
 
-    curY += rowH + 6;
+    // Preset bar (above everything else in sidebar)
+    int presetComboW = sw - 90;
+    presetPrevBtn.setBounds    (sx, sy, 14, rowH);
+    paramPresetBox.setBounds   (sx + 16, sy, presetComboW, rowH);
+    presetNextBtn.setBounds    (sx + 16 + presetComboW + 2, sy, 14, rowH);
+    presetSaveBtn.setBounds    (sx + sw - 40, sy, 20, rowH);
+    presetDeleteBtn.setBounds  (sx + sw - 18, sy, 18, rowH);
+    sy += rowH + 6;
 
-    // Row 2
-    scaleLabel.setBounds (col1X, curY, labelW, rowH);
-    scaleBox.setBounds   (col1X + labelW, curY, boxW, rowH);
+    // Harmony section: Key, Scale, Voicing, Octave
+    auto placeSelector = [&](gm::ComboSelector& sel) {
+        sel.setBounds (sx, sy, sw, rowH + 16);
+        sy += rowH + 16 + rowGap;
+    };
+    auto placeRow = [&](juce::Label& lbl, juce::Component& box) {
+        lbl.setBounds (sx, sy, labelW, rowH);
+        box.setBounds (sx + labelW, sy, boxW, rowH);
+        sy += rowH + rowGap;
+    };
 
-    gamepadLabel.setBounds    (col2X, curY, labelW, rowH);
-    gamepadIndexBox.setBounds (col2X + labelW, curY, boxW, rowH);
+    placeSelector (keySel);
+    placeSelector (scaleSel);
+    placeSelector (voicingSel);
+    placeRow (octaveLabel, octaveBox);
 
-    curY += rowH + 6;
+    sy += 4 + sectionHeaderH + 4;
 
-    // Row 3
-    voicingLabel.setBounds (col1X, curY, labelW, rowH);
-    voicingBox.setBounds   (col1X + labelW, curY, boxW, rowH);
+    // Performance section
+    placeSelector (synthModeSel);
+    placeRow (presetLabel, presetBox);
+    placeRow (gamepadLabel, gamepadIndexBox);
 
-    synthModeLabel.setBounds  (col2X, curY, labelW, rowH);
-    synthModeBox.setBounds    (col2X + labelW, curY, boxW, rowH);
-
-    curY += rowH + 6;
-
-    // Row 4
-    octaveLabel.setBounds (col1X, curY, labelW, rowH);
-    octaveBox.setBounds   (col1X + labelW, curY, boxW, rowH);
-
-    loadSfzBtn.setBounds      (col2X, curY, labelW + boxW, rowH);
-
-    curY += rowH + 6;
-
-    // Row 5
+    // Strum slider (full sidebar width)
     if (strumSlider)
-        strumSlider->setBounds (col1X, curY, labelW + boxW, 40);
+        strumSlider->setBounds (sx, sy, sw, 40);
+    sy += 44;
 
-    curY += 40 + 4;
+    // Load SFZ button
+    loadSfzBtn.setBounds (sx, sy, sw, rowH);
+    sy += rowH + 4;
 
-    // Effects section label + macro knobs
-    effectsLabel.setBounds (col1X, curY, 60, 14);
-    curY += 16;
+    // ══════════════════════════════════════════
+    // CANVAS LAYOUT (right panel)
+    // ══════════════════════════════════════════
 
+    // Chord display (large, centered in upper canvas)
+    chordLabel.setBounds (canvasX, 20, canvasW, 140);
+
+    // Effects area label
+    effectsLabel.setBounds (canvasX + 12, 284, 60, 14);
+
+    // Knobs row (below effects divider)
     int knobW = 70;
     int knobH = 84;
-    int knobGap = 12;
-    int knobStartX = col1X;
+    int knobGap = 10;
+    int knobY = 300;
+    int knobStartX = canvasX + 12;
 
-    // 3 macro knobs: Volume, Reverb, Cutoff
     if (masterVolumeKnob)
-        masterVolumeKnob->setBounds (knobStartX, curY, knobW, knobH);
+        masterVolumeKnob->setBounds (knobStartX, knobY, knobW, knobH);
     if (reverbMixKnob)
-        reverbMixKnob->setBounds (knobStartX + 1 * (knobW + knobGap), curY, knobW, knobH);
+        reverbMixKnob->setBounds (knobStartX + 1 * (knobW + knobGap), knobY, knobW, knobH);
     if (filterCutoffKnob)
-        filterCutoffKnob->setBounds (knobStartX + 2 * (knobW + knobGap), curY, knobW, knobH);
+        filterCutoffKnob->setBounds (knobStartX + 2 * (knobW + knobGap), knobY, knobW, knobH);
 
-    // FX drawer button (right of macro knobs)
-    fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), curY + 20, 40, 40);
+    // FX drawer button
+    fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), knobY + 20, 40, 40);
 
-    curY += knobH + 8;
-
-    // Remaining area
-    auto remainingArea = getLocalBounds().withWidth (mainWidth).withTrimmedTop (curY).reduced (16, 0);
-
-    // Chord display
-    chordLabel.setBounds (remainingArea.removeFromTop (40));
-
-    // LED Meters (right side of main area)
+    // LED Meters (right side of canvas)
     int meterW = 14;
-    int meterH = 120;
-    int meterX = mainWidth - 40;
-    int meterY = 340;
+    int meterH = 100;
+    int meterX = canvasX + canvasW - 40;
+    int meterY = knobY;
     meterL.setBounds (meterX, meterY, meterW, meterH);
     meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
 
-    // Status at bottom
-    statusLabel.setBounds (getLocalBounds().withWidth (mainWidth).removeFromBottom (24).reduced (16, 0));
+    // Toast overlay (full canvas area for centered toast messages)
+    toastOverlay.setBounds (sidebarWidth, 0, canvasW, getHeight());
 
-    // Effects drawer (right side panel)
+    // Status bar
+    statusLabel.setBounds (getLocalBounds().withWidth (mainWidth).removeFromBottom (statusH).reduced (16, 0));
+
+    // Effects drawer
     if (effectsDrawer)
         effectsDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
 }
@@ -472,5 +602,65 @@ void JoychordEditor::toggleDrawer()
     int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
     effectsDrawer->setVisible (drawerOpen);
     setSize (targetW, getHeight());
-    fxDrawerBtn.setButtonText (drawerOpen ? "<<" : "FX");
+    fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
+}
+
+void JoychordEditor::refreshPresetList()
+{
+    paramPresetBox.clear (juce::dontSendNotification);
+    auto& presets = presetMgr->getPresets();
+    for (int i = 0; i < static_cast<int>(presets.size()); ++i)
+        paramPresetBox.addItem (presets[i].name, i + 1);
+
+    int idx = presetMgr->getCurrentPresetIndex();
+    if (idx >= 0)
+        paramPresetBox.setSelectedId (idx + 1, juce::dontSendNotification);
+}
+
+void JoychordEditor::savePresetWithDialog()
+{
+    auto dlg = std::make_unique<juce::AlertWindow> (
+        "Save Preset", "Enter a name for this preset:",
+        juce::MessageBoxIconType::NoIcon);
+    dlg->addTextEditor ("name", presetMgr->getCurrentPresetName(), "Preset Name");
+    dlg->addButton ("Save", 1);
+    dlg->addButton ("Cancel", 0);
+
+    auto* dlgPtr = dlg.get();
+    dlg->enterModalState (true,
+        juce::ModalCallbackFunction::create ([this, dlgPtr] (int result) {
+            if (result == 1)
+            {
+                auto name = dlgPtr->getTextEditorContents ("name").trim();
+                if (name.isNotEmpty())
+                {
+                    presetMgr->savePreset (name);
+                    refreshPresetList();
+                    toastOverlay.showToast ("Saved: " + name, gm::ToastOverlay::Type::Success, 2000);
+                }
+            }
+        }),
+        true);
+    dlg.release();
+}
+
+void JoychordEditor::deleteCurrentPreset()
+{
+    int idx = presetMgr->getCurrentPresetIndex();
+    if (idx < 0) return;
+
+    auto& presets = presetMgr->getPresets();
+    if (idx >= static_cast<int>(presets.size())) return;
+    if (presets[idx].isFactory) {
+        toastOverlay.showToast ("Cannot delete factory preset", gm::ToastOverlay::Type::Warning, 2000);
+        return;
+    }
+
+    auto file = presets[idx].file;
+    if (file.existsAsFile())
+        file.deleteFile();
+
+    presetMgr->scanPresets();
+    refreshPresetList();
+    toastOverlay.showToast ("Preset deleted", gm::ToastOverlay::Type::Info, 1500);
 }
