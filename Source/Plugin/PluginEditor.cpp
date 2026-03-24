@@ -318,8 +318,8 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (sbf, 4.0f);
     }
 
-    // Surface grain for brushed metal feel
-    gm::buttons::drawSurfaceGrain (g, sbf, 4.0f, 0.015f);
+    // Brushed metal texture
+    gm::buttons::drawBrushedMetal (g, sbf, 4.0f, 0, 0.035f);
 
     // Sidebar border
     g.setColour (juce::Colour (0xff252535));
