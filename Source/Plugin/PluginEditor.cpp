@@ -483,19 +483,34 @@ void JoychordEditor::paint (juce::Graphics& g)
     auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 15)
     {
         float fx = (float)x, fy = (float)y, fr = (float)radius;
+        auto btnRect = juce::Rectangle<float> (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f);
+
         if (pressed) {
-            // 3-ring concentric glow
-            g.setColour (col.withAlpha (0.06f));
-            g.fillEllipse (fx - fr - 8.0f, fy - fr - 8.0f, (fr + 8.0f) * 2.0f, (fr + 8.0f) * 2.0f);
-            g.setColour (col.withAlpha (0.10f));
-            g.fillEllipse (fx - fr - 5.0f, fy - fr - 5.0f, (fr + 5.0f) * 2.0f, (fr + 5.0f) * 2.0f);
-            g.setColour (col.withAlpha (0.15f));
-            g.fillEllipse (fx - fr - 3.0f, fy - fr - 3.0f, (fr + 3.0f) * 2.0f, (fr + 3.0f) * 2.0f);
+            // Accent glow bloom (uses melatonin_blur when available)
+            gm::buttons::drawAccentGlow (g, btnRect, fr, col, 10.0f, 0.25f);
         }
+
+        // Drop shadow beneath button
+        gm::buttons::drawButtonShadow (g, btnRect, fr, pressed ? 0.1f : 0.25f);
+
+        // Body fill
         g.setColour (pressed ? col : col.withAlpha (0.15f));
-        g.fillEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f);
+        g.fillEllipse (btnRect);
+
+        // Inner shadow for depth
+        gm::buttons::drawInnerShadow (g, btnRect, fr, 0.3f);
+
+        // Specular dome (3D curvature highlight)
+        gm::buttons::drawSpecularDome (g, btnRect, fr, pressed ? 0.6f : 0.25f);
+
+        // Rim lighting (beveled edge)
+        gm::buttons::drawRimLighting (g, btnRect, fr, 0.12f, 0.2f);
+
+        // Border
         g.setColour (pressed ? col.brighter (0.3f) : juce::Colour (0xff505060));
-        g.drawEllipse (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f, 1.5f);
+        g.drawEllipse (btnRect, 1.5f);
+
+        // Label text
         g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff909090));
         g.setFont (typo.getLabelFont (10.0f));
         g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
