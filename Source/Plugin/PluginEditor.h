@@ -71,8 +71,11 @@ private:
     // Connection status
     juce::Label statusLabel;
 
-    // Section labels
+    // Section labels for non-ComboSelector rows
     juce::Label octaveLabel, presetLabel, gamepadLabel;
+
+    // Section label for effects area
+    juce::Label effectsLabel;
 
     // Button state
     bool btnA = false, btnB = false, btnX = false, btnY = false;
@@ -89,8 +92,7 @@ private:
     std::unique_ptr<gm::Knob> reverbMixKnob;
     std::unique_ptr<gm::Knob> filterCutoffKnob;
 
-    // Section label for effects
-    juce::Label effectsLabel;
+
 
     // Effects drawer
     gm::GmTextButton fxDrawerBtn;
@@ -103,10 +105,10 @@ private:
     // Preset system (gm::PresetManager — JSON, A/B, dirty detection)
     std::unique_ptr<gm::PresetManager> presetMgr;
     juce::ComboBox paramPresetBox;
-    juce::TextButton presetSaveBtn { "Save" };
-    juce::TextButton presetDeleteBtn { "Del" };
-    juce::TextButton presetPrevBtn { "<" };
-    juce::TextButton presetNextBtn { ">" };
+    gm::GmTextButton presetSaveBtn;
+    gm::GmTextButton presetDeleteBtn;
+    gm::GmTextButton presetPrevBtn;
+    gm::GmTextButton presetNextBtn;
     gm::ToastOverlay toastOverlay;
     void refreshPresetList();
     void savePresetWithDialog();

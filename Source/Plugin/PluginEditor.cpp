@@ -20,6 +20,10 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     setLookAndFeel (&darkTheme);
     darkTheme.setColour (gm::DarkMetallicTheme::accentColourId, juce::Colour (0xff00ccff));
 
+    // Initialize ThemeManager with Dark Metallic palette
+    auto& theme = gm::ThemeManager::getInstance();
+    theme.loadPreset ("Dark Metallic");
+
     // Key selector (gm::ComboSelector)
     keySel.setup (processor.apvts, "key", "Key",
                   juce::StringArray {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"});
@@ -182,16 +186,28 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
     addAndMakeVisible (paramPresetBox);
 
+    presetSaveBtn.setup ("S");
+    presetSaveBtn.setTooltip ("Save preset");
     presetSaveBtn.onClick = [this] { savePresetWithDialog(); };
+    presetSaveBtn.getButton().onClick = [this] { savePresetWithDialog(); };
     addAndMakeVisible (presetSaveBtn);
 
+    presetDeleteBtn.setup ("X");
+    presetDeleteBtn.setTooltip ("Delete preset");
     presetDeleteBtn.onClick = [this] { deleteCurrentPreset(); };
+    presetDeleteBtn.getButton().onClick = [this] { deleteCurrentPreset(); };
     addAndMakeVisible (presetDeleteBtn);
 
+    presetPrevBtn.setup ("<");
+    presetPrevBtn.setTooltip ("Previous preset");
     presetPrevBtn.onClick = [this] { presetMgr->loadPreviousPreset(); refreshPresetList(); };
+    presetPrevBtn.getButton().onClick = [this] { presetMgr->loadPreviousPreset(); refreshPresetList(); };
     addAndMakeVisible (presetPrevBtn);
 
+    presetNextBtn.setup (">");
+    presetNextBtn.setTooltip ("Next preset");
     presetNextBtn.onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
+    presetNextBtn.getButton().onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
     addAndMakeVisible (presetNextBtn);
 
     addAndMakeVisible (toastOverlay);
