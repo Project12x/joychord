@@ -14,6 +14,7 @@
 #include "EffectsDrawer.h"
 #include "PresetManager.h"
 #include "ToastOverlay.h"
+#include <melatonin_blur/melatonin_blur.h>
 
 // Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
 struct JoychordTheme : public gm::DarkMetallicTheme {
@@ -86,6 +87,10 @@ private:
     // Ghostmoon UI
     JoychordTheme darkTheme;
     gm::LEDMeter meterL, meterR;
+
+    // Melatonin blur shadows (cached, GPU-accelerated)
+    melatonin::DropShadow chordGlow { juce::Colour (0xff00ccff).withAlpha (0.35f), 24, { 0, 4 } };
+    melatonin::DropShadow sidebarShadow { juce::Colours::black.withAlpha (0.5f), 12, { 4, 0 } };
 
     // Main window macro knobs
     std::unique_ptr<gm::Knob> masterVolumeKnob;

@@ -298,6 +298,8 @@ static juce::String getRoleLabel (const ButtonRole& role)
 void JoychordEditor::paint (juce::Graphics& g)
 {
     auto& typo = gm::Typography::getInstance();
+    auto& theme = gm::ThemeManager::getInstance();
+    auto accent = theme.getAccent();
     g.fillAll (findColour (gm::DarkMetallicTheme::bgColourId));
 
     int canvasX = sidebarWidth;
@@ -313,20 +315,19 @@ void JoychordEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff252535));
     g.drawRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f, 1.0f);
 
-    // Sidebar drop shadow (right edge gradient)
+    // Sidebar drop shadow (melatonin blur)
     {
-        juce::ColourGradient shadow (juce::Colour (0x30000000), (float)sidebarWidth, 0.0f,
-                                     juce::Colours::transparentBlack, (float)(sidebarWidth + 6), 0.0f, false);
-        g.setGradientFill (shadow);
-        g.fillRect (sidebarWidth, 0, 6, getHeight() - statusH);
+        juce::Path sidebarPath;
+        sidebarPath.addRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f);
+        sidebarShadow.render (g, sidebarPath);
     }
 
-    // Sidebar section headers with subtle glow
+    // Sidebar section headers with accent glow
     auto drawSectionHeader = [&](const juce::String& text, int y) {
-        g.setFont (typo.getLabelFont (10.0f));
-        g.setColour (juce::Colour (0xff00cccc).withAlpha (0.2f));
+        g.setFont (typo.getHeaderFont (10.0f));
+        g.setColour (accent.withAlpha (0.15f));
         g.drawText (text, 13, y + 1, sidebarWidth - 24, 14, juce::Justification::centredLeft);
-        g.setColour (juce::Colour (0xff00cccc));
+        g.setColour (accent);
         g.drawText (text, 12, y, sidebarWidth - 24, 14, juce::Justification::centredLeft);
     };
 
@@ -335,7 +336,8 @@ void JoychordEditor::paint (juce::Graphics& g)
     int paintSy = 8 + sideSecH + 4;   // after HARMONY header
     paintSy += sideRowH + 6;           // preset bar
     int harmonyStartY = paintSy;
-    paintSy += (sideRowH + sideRowGap) * 4; // 4 harmony rows
+    // 3 ComboSelectors (key, scale, voicing) at (rowH+16+gap) + 1 placeRow (octave)
+    paintSy += (sideRowH + 16 + sideRowGap) * 3 + (sideRowH + sideRowGap);
     int harmonyEndY = paintSy;
 
     drawSectionHeader ("HARMONY", 8);
@@ -370,33 +372,26 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // Title with glow
     g.setFont (typo.getHeaderFont (20.0f));
-    g.setColour (juce::Colour (0xff00ccff).withAlpha (0.12f));
+    g.setColour (accent.withAlpha (0.12f));
     g.drawText ("Joychord", canvasX + 2, 10, canvasW, 24, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff00ccff).withAlpha (0.25f));
+    g.setColour (accent.withAlpha (0.25f));
     g.drawText ("Joychord", canvasX + 1, 9, canvasW, 24, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff00ccff));
+    g.setColour (accent);
     g.drawText ("Joychord", canvasX, 8, canvasW, 24, juce::Justification::centred);
 
-    // ── CHORD READOUT GLOW ──
-    // Soft bloom centered behind chord text, not full-width
+    // ── CHORD READOUT GLOW (melatonin blur) ──
     if (processor.lastChordName.isNotEmpty())
     {
         float glowCx = (float)(canvasX + canvasW / 2);
-        float glowW = 220.0f;
-        float glowH = 100.0f;
-        auto chordGlow = juce::Rectangle<float> (glowCx - glowW / 2, 30.0f, glowW, glowH);
-        // Outer glow
-        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.06f));
-        g.fillRoundedRectangle (chordGlow.expanded (30.0f, 16.0f), 24.0f);
-        // Mid glow
-        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.08f));
-        g.fillRoundedRectangle (chordGlow.expanded (10.0f, 6.0f), 16.0f);
-        // Inner glow
-        g.setColour (juce::Colour (0xff00ccff).withAlpha (0.05f));
-        g.fillRoundedRectangle (chordGlow, 10.0f);
+        float glowW = 200.0f;
+        float glowH = 80.0f;
+        auto chordGlowRect = juce::Rectangle<float> (glowCx - glowW / 2, 50.0f, glowW, glowH);
+        juce::Path glowPath;
+        glowPath.addRoundedRectangle (chordGlowRect, 16.0f);
+        chordGlow.render (g, glowPath);
     }
 
-    // ── CHORD TEXT (direct paint for guaranteed font control) ──
+    // ── CHORD TEXT with drop shadow ──
     {
         auto chordArea = juce::Rectangle<int> (canvasX, 20, canvasW, 150);
         auto chordText = processor.lastChordName.isNotEmpty()
@@ -406,7 +401,19 @@ void JoychordEditor::paint (juce::Graphics& g)
                              ? juce::Colour (0xffffffff)
                              : juce::Colour (0xff606080);
 
-        g.setFont (gm::Typography::getInstance().getClassicalDisplayFont (120.0f));
+        auto chordFont = gm::Typography::getInstance().getClassicalDisplayFont (120.0f);
+        g.setFont (chordFont);
+
+        // Text shadow (offset 2px down, semi-transparent black)
+        g.setColour (juce::Colour (0x60000000));
+        g.drawText (chordText, chordArea.translated (0, 3), juce::Justification::centred);
+        // Accent underglow on text
+        if (processor.lastChordName.isNotEmpty())
+        {
+            g.setColour (accent.withAlpha (0.08f));
+            g.drawText (chordText, chordArea.translated (0, 1), juce::Justification::centred);
+        }
+        // Main text
         g.setColour (chordCol);
         g.drawText (chordText, chordArea, juce::Justification::centred);
     }
