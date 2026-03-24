@@ -308,17 +308,30 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // ── SIDEBAR BACKGROUND ──
     auto sidebarArea = juce::Rectangle<int> (0, 0, sidebarWidth, getHeight() - statusH);
-    g.setColour (juce::Colour (0xff0a0a10));
-    g.fillRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f);
+    auto sbf = sidebarArea.toFloat().reduced (2.0f);
+
+    // Gradient fill: cool top to warm bottom
+    {
+        auto sideGrad = gm::buttons::buildPanelGradient (
+            juce::Colour (0xff0e0e16), sbf.getCentreX(), sbf.getY(), sbf.getBottom(), 0.35f);
+        g.setGradientFill (sideGrad);
+        g.fillRoundedRectangle (sbf, 4.0f);
+    }
+
+    // Surface grain for brushed metal feel
+    gm::buttons::drawSurfaceGrain (g, sbf, 4.0f, 0.015f);
 
     // Sidebar border
     g.setColour (juce::Colour (0xff252535));
-    g.drawRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f, 1.0f);
+    g.drawRoundedRectangle (sbf, 4.0f, 1.0f);
+
+    // Top bevel highlight (subtle light edge at top)
+    gm::buttons::drawTopBevel (g, sbf, 4.0f, 0.15f, 0.04f);
 
     // Sidebar drop shadow (melatonin blur)
     {
         juce::Path sidebarPath;
-        sidebarPath.addRoundedRectangle (sidebarArea.toFloat().reduced (2.0f), 4.0f);
+        sidebarPath.addRoundedRectangle (sbf, 4.0f);
         sidebarShadow.render (g, sidebarPath);
     }
 
@@ -367,8 +380,29 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // ── CANVAS BACKGROUND ──
     auto canvasArea = juce::Rectangle<int> (canvasX, 0, canvasW, getHeight() - statusH);
-    g.setColour (juce::Colour (0xff121218));
-    g.fillRect (canvasArea);
+    // Vertical gradient: slightly lighter top to darker bottom
+    {
+        juce::ColourGradient canvasGrad (juce::Colour (0xff161620), (float)canvasX, 0.0f,
+                                         juce::Colour (0xff0e0e14), (float)canvasX, (float)(getHeight() - statusH), false);
+        g.setGradientFill (canvasGrad);
+        g.fillRect (canvasArea);
+    }
+
+    // Subtle grid lines (horizontal, every 40px) for depth
+    g.setColour (juce::Colour (0xff1a1a24));
+    for (int gy = 40; gy < getHeight() - statusH; gy += 40)
+        g.drawHorizontalLine (gy, (float)canvasX + 8.0f, (float)(canvasX + canvasW - 8));
+
+    // Radial vignette: darker edges for focus
+    {
+        float cx = (float)(canvasX + canvasW / 2);
+        float cy = (float)((getHeight() - statusH) / 2);
+        float r = (float)juce::jmax (canvasW, getHeight()) * 0.7f;
+        juce::ColourGradient vignette (juce::Colours::transparentBlack, cx, cy,
+                                       juce::Colour (0x20000000), cx, cy + r, true);
+        g.setGradientFill (vignette);
+        g.fillRect (canvasArea);
+    }
 
     // Title with glow
     g.setFont (typo.getHeaderFont (20.0f));
@@ -417,18 +451,28 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.setColour (chordCol);
         g.drawText (chordText, chordArea, juce::Justification::centred);
     }
+    // ── STATUS BAR ──
     {
         int sbY = getHeight() - statusH;
-        juce::ColourGradient shadowGrad (juce::Colours::transparentBlack, 0.0f, (float)(sbY - 6),
-                                         juce::Colour (0x28000000), 0.0f, (float)sbY, false);
+        // Drop shadow above status bar
+        juce::ColourGradient shadowGrad (juce::Colours::transparentBlack, 0.0f, (float)(sbY - 8),
+                                         juce::Colour (0x30000000), 0.0f, (float)sbY, false);
         g.setGradientFill (shadowGrad);
-        g.fillRect (0, sbY - 6, getWidth(), 6);
+        g.fillRect (0, sbY - 8, getWidth(), 8);
     }
     auto statusArea = getLocalBounds().removeFromBottom (statusH);
-    g.setColour (juce::Colour (0xff101018));
-    g.fillRect (statusArea);
-    g.setColour (juce::Colour (0xff303040));
+    // Gradient fill: slightly lighter left to darker right
+    {
+        juce::ColourGradient statusGrad (juce::Colour (0xff141420), 0.0f, (float)statusArea.getY(),
+                                         juce::Colour (0xff0c0c14), 0.0f, (float)statusArea.getBottom(), false);
+        g.setGradientFill (statusGrad);
+        g.fillRect (statusArea);
+    }
+    // Accent-tinged top divider
+    g.setColour (accent.withAlpha (0.15f));
     g.drawHorizontalLine (statusArea.getY(), 0.0f, (float)getWidth());
+    g.setColour (juce::Colour (0xff252535));
+    g.drawHorizontalLine (statusArea.getY() + 1, 0.0f, (float)getWidth());
 
     // ── GAMEPAD HUD (compact, in canvas) ──
     int hudCx = canvasX + canvasW / 2;

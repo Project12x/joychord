@@ -14,6 +14,7 @@
 #include "EffectsDrawer.h"
 #include "PresetManager.h"
 #include "ToastOverlay.h"
+#include "ButtonStyles.h"
 #include <melatonin_blur/melatonin_blur.h>
 
 // Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
