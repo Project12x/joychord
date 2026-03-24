@@ -120,12 +120,13 @@ juce_add_plugin(Joychord
     IS_SYNTH                 TRUE
 )
 
-# ── Font binary data (ghostmoon font kit – core subset) ──────────────────────
+# ── Font + texture binary data (ghostmoon font kit + tiles) ──────────────────
 juce_add_binary_data(JoychordFonts SOURCES
     Source/UI/Fonts/Inter-Regular.ttf
     Source/UI/Fonts/Inter-Bold.ttf
     Source/UI/Fonts/JetBrainsMono-Regular.ttf
     Source/UI/Fonts/CormorantGaramond-Bold.ttf
+    Source/UI/Textures/tile_crosshatch.png
 )
 
 # Force dynamic CRT on all JUCE-generated plugin subtargets (Standalone, VST3, SharedCode).

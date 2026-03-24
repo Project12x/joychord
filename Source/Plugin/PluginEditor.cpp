@@ -209,12 +209,15 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     presetNextBtn.onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
     presetNextBtn.getButton().onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
     addAndMakeVisible (presetNextBtn);
-
     addAndMakeVisible (toastOverlay);
 
     refreshPresetList();
 
-    setSize (mainWidth, 520);  // MUST be last
+    // Load canvas background tile from BinaryData
+    canvasTile = juce::ImageCache::getFromMemory (
+        BinaryData::tile_crosshatch_png, BinaryData::tile_crosshatch_pngSize);
+
+    setSize (mainWidth, 480);
     startTimerHz (30);
 }
 
@@ -388,10 +391,19 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRect (canvasArea);
     }
 
-    // Subtle grid lines (horizontal, every 40px) for depth
-    g.setColour (juce::Colour (0xff1a1a24));
-    for (int gy = 40; gy < getHeight() - statusH; gy += 40)
-        g.drawHorizontalLine (gy, (float)canvasX + 8.0f, (float)(canvasX + canvasW - 8));
+    // Tiled crosshatch texture overlay
+    if (canvasTile.isValid())
+    {
+        int tw = canvasTile.getWidth();
+        int th = canvasTile.getHeight();
+        g.saveState();
+        g.reduceClipRegion (canvasArea);
+        g.setOpacity (0.12f);
+        for (int ty = 0; ty < getHeight(); ty += th)
+            for (int tx = canvasX; tx < canvasX + canvasW; tx += tw)
+                g.drawImageAt (canvasTile, tx, ty);
+        g.restoreState();
+    }
 
     // Radial vignette: darker edges for focus
     {

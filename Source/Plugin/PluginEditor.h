@@ -108,6 +108,9 @@ private:
     static constexpr int sidebarWidth = 200;
     static constexpr int drawerWidth = 180;
 
+    // Canvas background tile (crosshatch texture, loaded from BinaryData)
+    juce::Image canvasTile;
+
     // Preset system (gm::PresetManager — JSON, A/B, dirty detection)
     std::unique_ptr<gm::PresetManager> presetMgr;
     juce::ComboBox paramPresetBox;
