@@ -321,8 +321,23 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (sbf, 4.0f);
     }
 
-    // Brushed metal texture
-    gm::buttons::drawBrushedMetal (g, sbf, 4.0f, 0, 0.035f);
+    // Tiled brushed metal texture on sidebar
+    {
+        auto sidebarTile = juce::ImageCache::getFromMemory (
+            BinaryData::tile_brushed_metal_png, BinaryData::tile_brushed_metal_pngSize);
+        if (sidebarTile.isValid())
+        {
+            int tw = sidebarTile.getWidth();
+            int th = sidebarTile.getHeight();
+            g.saveState();
+            g.reduceClipRegion (sbf.toNearestInt());
+            g.setOpacity (0.15f);
+            for (int ty = 0; ty < getHeight(); ty += th)
+                for (int tx = 0; tx < sidebarWidth; tx += tw)
+                    g.drawImageAt (sidebarTile, tx, ty);
+            g.restoreState();
+        }
+    }
 
     // Sidebar border
     g.setColour (juce::Colour (0xff252535));
@@ -398,7 +413,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         int th = canvasTile.getHeight();
         g.saveState();
         g.reduceClipRegion (canvasArea);
-        g.setOpacity (0.12f);
+        g.setOpacity (0.18f);
         for (int ty = 0; ty < getHeight(); ty += th)
             for (int tx = canvasX; tx < canvasX + canvasW; tx += tw)
                 g.drawImageAt (canvasTile, tx, ty);

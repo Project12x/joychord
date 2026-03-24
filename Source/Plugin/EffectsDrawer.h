@@ -3,6 +3,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "Knob.h"
 #include "KnobStyles.h"
+#include "ButtonStyles.h"
+#include "BinaryData.h"
 
 // Sliding effects drawer containing all effect controls + toggles.
 // Lives as a child of JoychordEditor, positioned at the right edge.
@@ -62,6 +64,23 @@ public:
     void paint (juce::Graphics& g) override
     {
         g.fillAll (juce::Colour (0xff111118));
+
+        // Tiled brushed metal texture from BinaryData
+        if (! drawerTile.isValid())
+            drawerTile = juce::ImageCache::getFromMemory (
+                BinaryData::tile_brushed_metal_png, BinaryData::tile_brushed_metal_pngSize);
+        if (drawerTile.isValid())
+        {
+            int tw = drawerTile.getWidth();
+            int th = drawerTile.getHeight();
+            g.saveState();
+            g.reduceClipRegion (getLocalBounds());
+            g.setOpacity (0.15f);
+            for (int ty = 0; ty < getHeight(); ty += th)
+                for (int tx = 0; tx < getWidth(); tx += tw)
+                    g.drawImageAt (drawerTile, tx, ty);
+            g.restoreState();
+        }
 
         // Left edge separator line
         g.setColour (juce::Colour (0xff00cccc).withAlpha (0.3f));
@@ -136,4 +155,7 @@ private:
     std::unique_ptr<gm::Knob> filterCutoffKnob, filterResKnob;
     std::unique_ptr<gm::Knob> chorusRateKnob, chorusMixKnob;
     std::unique_ptr<gm::Knob> reverbDecayKnob, reverbDampKnob, reverbMixKnob;
+
+    // Cached tile image (loaded lazily from BinaryData)
+    mutable juce::Image drawerTile;
 };

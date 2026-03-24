@@ -127,6 +127,7 @@ juce_add_binary_data(JoychordFonts SOURCES
     Source/UI/Fonts/JetBrainsMono-Regular.ttf
     Source/UI/Fonts/CormorantGaramond-Bold.ttf
     Source/UI/Textures/tile_crosshatch.png
+    Source/UI/Textures/tile_brushed_metal.png
 )
 
 # Force dynamic CRT on all JUCE-generated plugin subtargets (Standalone, VST3, SharedCode).
