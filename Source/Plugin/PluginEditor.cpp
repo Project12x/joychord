@@ -527,69 +527,255 @@ void JoychordEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff404050));
     g.drawText ("v0.1.0", statusArea.reduced (12, 0), juce::Justification::centredRight);
 
-    // ── GAMEPAD HUD (compact, in canvas) ──
+    // ── GAMEPAD HUD (drawn controller body + interactive buttons) ──
     int hudCx = canvasX + canvasW / 2;
     int hudCy = 220;
     int r = 15;
     int spacing = 22;
+    int faceCx = hudCx + 55;
+    int dpadCx = hudCx - 55;
 
+    // ── GAMEPAD BODY ──
+    {
+        float cx = (float)hudCx;
+        float cy = (float)hudCy;
+
+        // Main body dimensions
+        float bodyW = 180.0f;   // total width
+        float bodyH = 110.0f;   // total height
+        float gripW = 28.0f;    // grip extension width
+        float gripH = 40.0f;    // how far grips extend below body
+        float bodyR = 20.0f;    // body corner radius
+        float gripR = 14.0f;    // grip corner radius
+
+        auto bodyRect = juce::Rectangle<float> (cx - bodyW / 2, cy - bodyH / 2, bodyW, bodyH);
+
+        // Build body path: main rectangle with grip extensions
+        juce::Path bodyPath;
+        bodyPath.addRoundedRectangle (bodyRect, bodyR);
+
+        // Left grip
+        auto leftGrip = juce::Rectangle<float> (
+            bodyRect.getX() - 2.0f, bodyRect.getBottom() - gripR * 2,
+            gripW, gripH + gripR);
+        juce::Path leftGripPath;
+        leftGripPath.addRoundedRectangle (leftGrip, gripR);
+        bodyPath.addPath (leftGripPath);
+
+        // Right grip
+        auto rightGrip = juce::Rectangle<float> (
+            bodyRect.getRight() + 2.0f - gripW, bodyRect.getBottom() - gripR * 2,
+            gripW, gripH + gripR);
+        juce::Path rightGripPath;
+        rightGripPath.addRoundedRectangle (rightGrip, gripR);
+        bodyPath.addPath (rightGripPath);
+
+        // Drop shadow behind controller
+        {
+            juce::Path shadowPath (bodyPath);
+            shadowPath.applyTransform (juce::AffineTransform::translation (0.0f, 3.0f));
+            g.setColour (juce::Colour (0x30000000));
+            g.fillPath (shadowPath);
+        }
+
+        // Body fill: dark metallic gradient
+        {
+            juce::ColourGradient bodyGrad (
+                juce::Colour (0xff1e1e2c), cx, bodyRect.getY(),
+                juce::Colour (0xff12121a), cx, bodyRect.getBottom() + gripH, false);
+            g.setGradientFill (bodyGrad);
+            g.fillPath (bodyPath);
+        }
+
+        // Inner highlight (top edge bevel)
+        {
+            juce::ColourGradient topBevel (
+                juce::Colour (0x18ffffff), cx, bodyRect.getY(),
+                juce::Colours::transparentBlack, cx, bodyRect.getY() + 12.0f, false);
+            g.setGradientFill (topBevel);
+            g.fillPath (bodyPath);
+        }
+
+        // Body outline
+        g.setColour (juce::Colour (0xff2a2a3c));
+        g.strokePath (bodyPath, juce::PathStrokeType (1.2f));
+
+        // Subtle accent glow on edge
+        g.setColour (accent.withAlpha (0.04f));
+        g.strokePath (bodyPath, juce::PathStrokeType (2.5f));
+
+        // ── D-PAD CROSS ──
+        {
+            float dx = (float)dpadCx;
+            float dy = cy;
+            float armW = 16.0f;   // arm width
+            float armL = 22.0f;   // arm length from center
+            float cr = 3.0f;      // corner radius
+
+            auto crossRect = juce::Rectangle<float> (dx - armW / 2, dy - armL, armW, armL * 2);
+            auto crossRectH = juce::Rectangle<float> (dx - armL, dy - armW / 2, armL * 2, armW);
+
+            juce::Path crossPath;
+            crossPath.addRoundedRectangle (crossRect, cr);
+            crossPath.addRoundedRectangle (crossRectH, cr);
+
+            // Recessed look
+            g.setColour (juce::Colour (0xff0a0a12));
+            g.fillPath (crossPath);
+
+            // Subtle border
+            g.setColour (juce::Colour (0xff1a1a28));
+            g.strokePath (crossPath, juce::PathStrokeType (1.0f));
+
+            // Center circle
+            g.setColour (juce::Colour (0xff161620));
+            g.fillEllipse (dx - 4, dy - 4, 8, 8);
+        }
+
+        // ── LEFT THUMBSTICK (below and left of d-pad) ──
+        {
+            float tsx = (float)dpadCx - 10.0f;
+            float tsy = cy + 38.0f;
+            float tsR = 10.0f;
+
+            // Socket (dark recess)
+            g.setColour (juce::Colour (0xff080810));
+            g.fillEllipse (tsx - tsR - 2, tsy - tsR - 2, (tsR + 2) * 2, (tsR + 2) * 2);
+
+            // Stick base
+            juce::ColourGradient stickGrad (
+                juce::Colour (0xff28283a), tsx, tsy - tsR,
+                juce::Colour (0xff1a1a28), tsx, tsy + tsR, false);
+            g.setGradientFill (stickGrad);
+            g.fillEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
+
+            // Rim
+            g.setColour (juce::Colour (0xff363648));
+            g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 0.8f);
+
+            // Grip texture (concentric circle)
+            g.setColour (juce::Colour (0xff1e1e30));
+            g.drawEllipse (tsx - 5, tsy - 5, 10, 10, 0.5f);
+        }
+
+        // ── RIGHT THUMBSTICK (below and right of face buttons) ──
+        {
+            float tsx = (float)faceCx + 10.0f;
+            float tsy = cy + 38.0f;
+            float tsR = 10.0f;
+
+            g.setColour (juce::Colour (0xff080810));
+            g.fillEllipse (tsx - tsR - 2, tsy - tsR - 2, (tsR + 2) * 2, (tsR + 2) * 2);
+
+            juce::ColourGradient stickGrad (
+                juce::Colour (0xff28283a), tsx, tsy - tsR,
+                juce::Colour (0xff1a1a28), tsx, tsy + tsR, false);
+            g.setGradientFill (stickGrad);
+            g.fillEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
+
+            g.setColour (juce::Colour (0xff363648));
+            g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 0.8f);
+
+            g.setColour (juce::Colour (0xff1e1e30));
+            g.drawEllipse (tsx - 5, tsy - 5, 10, 10, 0.5f);
+        }
+
+        // ── SHOULDER BUMPERS (rounded rectangles) ──
+        {
+            float bumpW = 40.0f;
+            float bumpH = 12.0f;
+            float bumpR = 5.0f;
+
+            // Left bumper
+            auto lbRect = juce::Rectangle<float> (
+                (float)dpadCx - bumpW / 2, bodyRect.getY() - bumpH + 4, bumpW, bumpH);
+            g.setColour (lb ? juce::Colour (0xffff4400) : juce::Colour (0xff1a1a28));
+            g.fillRoundedRectangle (lbRect, bumpR);
+            g.setColour (lb ? juce::Colour (0xffff6633).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
+            g.drawRoundedRectangle (lbRect, bumpR, 1.0f);
+            g.setColour (lb ? juce::Colours::white : juce::Colour (0xff707080));
+            g.setFont (typo.getLabelFont (8.0f));
+            g.drawText ("LB", lbRect, juce::Justification::centred);
+
+            // Right bumper
+            auto rbRect = juce::Rectangle<float> (
+                (float)faceCx - bumpW / 2, bodyRect.getY() - bumpH + 4, bumpW, bumpH);
+            g.setColour (rb ? accent : juce::Colour (0xff1a1a28));
+            g.fillRoundedRectangle (rbRect, bumpR);
+            g.setColour (rb ? accent.brighter (0.3f).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
+            g.drawRoundedRectangle (rbRect, bumpR, 1.0f);
+            g.setColour (rb ? juce::Colours::white : juce::Colour (0xff707080));
+            g.setFont (typo.getLabelFont (8.0f));
+            g.drawText ("RB", rbRect, juce::Justification::centred);
+        }
+
+        // ── CENTER GUIDE BUTTON (small pill between d-pad and face) ──
+        {
+            float guideR = 6.0f;
+            g.setColour (juce::Colour (0xff1a1a28));
+            g.fillEllipse (cx - guideR, cy - 42 - guideR, guideR * 2, guideR * 2);
+            g.setColour (accent.withAlpha (0.15f));
+            g.drawEllipse (cx - guideR, cy - 42 - guideR, guideR * 2, guideR * 2, 0.7f);
+        }
+    }
+
+    // D-pad directional highlights (drawn on top of cross)
+    {
+        auto grey = juce::Colour (0xff666688);
+        auto drawDPadDir = [&](float dx, float dy, float w, float h, bool pressed, const juce::String& label) {
+            auto area = juce::Rectangle<float> (dx, dy, w, h);
+            if (pressed) {
+                g.setColour (grey);
+                g.fillRoundedRectangle (area, 2.0f);
+                gm::buttons::drawAccentGlow (g, area, 6.0f, grey, 8.0f, 0.2f);
+            }
+            g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff606070));
+            g.setFont (typo.getLabelFont (8.0f));
+            g.drawText (label, area.toNearestInt(), juce::Justification::centred);
+        };
+
+        float dCx = (float)dpadCx;
+        float dCy = (float)hudCy;
+        float armW = 16.0f;
+        float armL = 22.0f;
+        drawDPadDir (dCx - armW / 2, dCy - armL, armW, armL - 2, dUp, "U");
+        drawDPadDir (dCx - armW / 2, dCy + 2, armW, armL - 2, dDown, "D");
+        drawDPadDir (dCx - armL, dCy - armW / 2, armL - 2, armW, dLeft, "L");
+        drawDPadDir (dCx + 2, dCy - armW / 2, armL - 2, armW, dRight, "R");
+    }
+
+    // Face buttons (drawn on top of body)
     auto drawBtn = [&](int x, int y, const juce::String& label, bool pressed, juce::Colour col, int radius = 15)
     {
         float fx = (float)x, fy = (float)y, fr = (float)radius;
         auto btnRect = juce::Rectangle<float> (fx - fr, fy - fr, fr * 2.0f, fr * 2.0f);
 
         if (pressed) {
-            // Accent glow bloom (uses melatonin_blur when available)
             gm::buttons::drawAccentGlow (g, btnRect, fr, col, 10.0f, 0.25f);
         }
 
-        // Drop shadow beneath button
         gm::buttons::drawButtonShadow (g, btnRect, fr, pressed ? 0.1f : 0.25f);
 
-        // Body fill
         g.setColour (pressed ? col : col.withAlpha (0.15f));
         g.fillEllipse (btnRect);
 
-        // Inner shadow for depth
         gm::buttons::drawInnerShadow (g, btnRect, fr, 0.3f);
-
-        // Specular dome (3D curvature highlight)
         gm::buttons::drawSpecularDome (g, btnRect, fr, pressed ? 0.6f : 0.25f);
-
-        // Rim lighting (beveled edge)
         gm::buttons::drawRimLighting (g, btnRect, fr, 0.12f, 0.2f);
 
-        // Border
         g.setColour (pressed ? col.brighter (0.3f) : juce::Colour (0xff505060));
         g.drawEllipse (btnRect, 1.5f);
 
-        // Label text
         g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff909090));
         g.setFont (typo.getLabelFont (10.0f));
         g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
     };
 
-    // Face buttons (right side)
-    int faceCx = hudCx + 55;
+    // Face buttons (right side, on body)
     drawBtn (faceCx,              hudCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
     drawBtn (faceCx - spacing,    hudCy,           "X",  btnX, juce::Colour (0xff0066cc));
     drawBtn (faceCx + spacing,    hudCy,           "B",  btnB, juce::Colour (0xffcc2200));
     drawBtn (faceCx,              hudCy + spacing, "A",  btnA, juce::Colour (0xff00aa44));
-
-    // D-pad (left side)
-    int dpadCx = hudCx - 55;
-    int ds = 18;
-    int dr = 12;
-    auto grey = juce::Colour (0xff666688);
-    drawBtn (dpadCx,       hudCy - ds, "U",  dUp,    grey, dr);
-    drawBtn (dpadCx - ds,  hudCy,      "L",  dLeft,  grey, dr);
-    drawBtn (dpadCx + ds,  hudCy,      "R",  dRight, grey, dr);
-    drawBtn (dpadCx,       hudCy + ds, "D",  dDown,  grey, dr);
-
-    // Shoulders
-    int shoulderY = hudCy - spacing - 30;
-    drawBtn (dpadCx, shoulderY, "LB", lb, juce::Colour (0xffff4400), 12);
-    drawBtn (faceCx, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 12);
 
     // Degree labels (accent-tinted pill background)
     g.setFont (typo.getValueFont (9.0f));
@@ -614,10 +800,10 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  hudCy - 5,           juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::A, faceCx + r + 2,            hudCy + spacing - 5, juce::Justification::centredLeft);
 
-    drawRoleLabel (ButtonId::DUp,    dpadCx - dr - 30,      hudCy - ds - 5, juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DLeft,  dpadCx - ds - dr - 30, hudCy - 5,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + ds + dr + 2,  hudCy - 5,      juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::DDown,  dpadCx - dr - 30,      hudCy + ds - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DUp,    dpadCx - 22 - 30,       hudCy - 22 - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DLeft,  dpadCx - 22 - 22 - 30, hudCy - 5,      juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DRight, dpadCx + 22 + 22 + 2,  hudCy - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DDown,  dpadCx - 22 - 30,       hudCy + 22 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──
     int effectsDivY = 280;
