@@ -56,7 +56,7 @@ private:
 
     std::unique_ptr<gm::HSlider> strumSlider;
 
-    juce::TextButton loadSfzBtn { "Load SFZ..." };
+    gm::GmTextButton loadSfzBtn;
 
     // Chord display
     juce::Label chordLabel;

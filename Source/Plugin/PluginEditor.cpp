@@ -42,6 +42,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     // Octave dropdown
     octaveLabel.setText ("Octave", juce::dontSendNotification);
     octaveLabel.setJustificationType (juce::Justification::centredRight);
+    octaveLabel.setFont (gm::Typography::getInstance().getLabelFont (10.0f));
+    octaveLabel.setColour (juce::Label::textColourId, juce::Colour (0xffa0a0b0));
     addAndMakeVisible (octaveLabel);
     for (int i = 2; i <= 6; ++i)
         octaveBox.addItem (juce::String(i), i);
@@ -55,6 +57,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     // Preset dropdown
     presetLabel.setText ("Preset", juce::dontSendNotification);
     presetLabel.setJustificationType (juce::Justification::centredRight);
+    presetLabel.setFont (gm::Typography::getInstance().getLabelFont (10.0f));
+    presetLabel.setColour (juce::Label::textColourId, juce::Colour (0xffa0a0b0));
     addAndMakeVisible (presetLabel);
     auto presets = ButtonRoleMap::getFactoryPresets();
     for (int i = 0; i < static_cast<int>(presets.size()); ++i)
@@ -71,6 +75,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     // Gamepad controller index
     gamepadLabel.setText ("Gamepad", juce::dontSendNotification);
     gamepadLabel.setJustificationType (juce::Justification::centredRight);
+    gamepadLabel.setFont (gm::Typography::getInstance().getLabelFont (10.0f));
+    gamepadLabel.setColour (juce::Label::textColourId, juce::Colour (0xffa0a0b0));
     addAndMakeVisible (gamepadLabel);
     for (int i = 1; i <= 4; ++i)
         gamepadIndexBox.addItem ("Controller " + juce::String(i), i);
@@ -90,9 +96,10 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         processor.apvts, "strumSpeed", "Strum (ms)", "0", "200", "Strum delay between chord notes");
     addAndMakeVisible (*strumSlider);
 
-    // Load SFZ Button
+    // Load SFZ Button (ghostmoon styled)
+    loadSfzBtn.setup ("Load SFZ...");
     addAndMakeVisible (loadSfzBtn);
-    loadSfzBtn.onClick = [this]() {
+    loadSfzBtn.getButton().onClick = [this]() {
         static std::unique_ptr<juce::FileChooser> chooser;
         chooser = std::make_unique<juce::FileChooser> ("Load SFZ File", juce::File(), "*.sfz");
         auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
@@ -501,6 +508,25 @@ void JoychordEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff252535));
     g.drawHorizontalLine (statusArea.getY() + 1, 0.0f, (float)getWidth());
 
+    // Connection status dot (green=connected, dim red=disconnected)
+    {
+        float dotX = 12.0f;
+        float dotY = (float)statusArea.getCentreY();
+        float dotR = 3.5f;
+        auto dotCol = connected ? juce::Colour (0xff00cc66) : juce::Colour (0xff663333);
+        if (connected) {
+            g.setColour (dotCol.withAlpha (0.2f));
+            g.fillEllipse (dotX - dotR - 2, dotY - dotR - 2, (dotR + 2) * 2, (dotR + 2) * 2);
+        }
+        g.setColour (dotCol);
+        g.fillEllipse (dotX - dotR, dotY - dotR, dotR * 2, dotR * 2);
+    }
+
+    // Version watermark (right-justified in status bar)
+    g.setFont (typo.getLabelFont (9.0f));
+    g.setColour (juce::Colour (0xff404050));
+    g.drawText ("v0.1.0", statusArea.reduced (12, 0), juce::Justification::centredRight);
+
     // ── GAMEPAD HUD (compact, in canvas) ──
     int hudCx = canvasX + canvasW / 2;
     int hudCy = 220;
@@ -565,14 +591,22 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawBtn (dpadCx, shoulderY, "LB", lb, juce::Colour (0xffff4400), 12);
     drawBtn (faceCx, shoulderY, "RB", rb, juce::Colour (0xff00ccff), 12);
 
-    // Degree labels
+    // Degree labels (accent-tinted pill background)
     g.setFont (typo.getValueFont (9.0f));
-    g.setColour (juce::Colour (0xffa0a0b0));
 
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
         juce::String labelStr = getRoleLabel (processor.getRoleMap().getRole (btnId));
-        if (labelStr.isNotEmpty())
-            g.drawText (labelStr, x, y, 28, 11, just);
+        if (labelStr.isNotEmpty()) {
+            int textW = labelStr.length() * 7 + 8;  // approximate pill width
+            int pillX = (just == juce::Justification::centredRight) ? x + 28 - textW : x;
+            auto pill = juce::Rectangle<float> ((float)pillX, (float)y, (float)textW, 13.0f);
+            g.setColour (accent.withAlpha (0.08f));
+            g.fillRoundedRectangle (pill, 3.0f);
+            g.setColour (accent.withAlpha (0.2f));
+            g.drawRoundedRectangle (pill, 3.0f, 0.5f);
+            g.setColour (juce::Colour (0xffc0c0d0));
+            g.drawText (labelStr, x, y, 28, 13, just);
+        }
     };
 
     drawRoleLabel (ButtonId::Y, faceCx + r + 2,            hudCy - spacing - 5, juce::Justification::centredLeft);
