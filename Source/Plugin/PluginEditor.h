@@ -17,21 +17,12 @@
 #include "ButtonStyles.h"
 #include <melatonin_blur/melatonin_blur.h>
 
-// Joychord theme: DarkMetallic + ghostmoon Neon combo boxes + themed popups
+// Joychord theme: DarkMetallic + ghostmoon Neon combo boxes
+// Popup rendering handled by DarkMetallicTheme (fillAll + exact alignment)
 struct JoychordTheme : public gm::DarkMetallicTheme {
     void drawComboBox (juce::Graphics& g, int w, int h, bool down,
                        int bx, int by, int bw, int bh, juce::ComboBox& cb) override {
         gm::combos::drawNeonComboBox (g, w, h, down, bx, by, bw, bh, cb);
-    }
-    void drawPopupMenuBackground (juce::Graphics& g, int w, int h) override {
-        gm::combos::drawDarkPopupBackground (g, w, h);
-    }
-    void drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<int>& area,
-                            bool isSep, bool isActive, bool isHL, bool isTicked,
-                            bool hasSub, const juce::String& text, const juce::String& shortcut,
-                            const juce::Drawable* icon, const juce::Colour* textCol) override {
-        gm::combos::drawThemedPopupMenuItem (g, area, isSep, isActive, isHL, isTicked,
-                                              hasSub, text, shortcut, icon, textCol);
     }
     void drawLinearSlider (juce::Graphics& g, int x, int y, int w, int h,
                            float sliderPos, float minPos, float maxPos,
