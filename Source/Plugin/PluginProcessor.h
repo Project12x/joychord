@@ -67,6 +67,10 @@ public:
     std::atomic<bool> btnAState{false}, btnBState{false}, btnXState{false}, btnYState{false};
     std::atomic<bool> dUpState{false}, dDownState{false}, dLeftState{false}, dRightState{false};
     std::atomic<bool> lbState{false}, rbState{false};
+    std::atomic<bool> l3State{false}, r3State{false};
+    std::atomic<float> ltValue{0.f}, rtValue{0.f};
+    std::atomic<float> lStickXState{0.f}, lStickYState{0.f};
+    std::atomic<float> rStickXState{0.f}, rStickYState{0.f};
     std::atomic<bool> gamepadConnected{false};
     FixedString<64> lastChordName;
 

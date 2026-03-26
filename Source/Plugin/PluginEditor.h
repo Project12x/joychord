@@ -27,7 +27,14 @@
 struct JoychordTheme : public gm::DarkMetallicTheme {
     void drawComboBox (juce::Graphics& g, int w, int h, bool down,
                        int bx, int by, int bw, int bh, juce::ComboBox& cb) override {
+        // Clip to rounded rect so neon bloom doesn't leak as square corners
+        float cr = juce::jmin (4.0f, (float) h * 0.2f);
+        juce::Path clip;
+        clip.addRoundedRectangle (0.0f, 0.0f, (float) w, (float) h, cr);
+        g.saveState();
+        g.reduceClipRegion (clip);
         gm::combos::drawNeonComboBox (g, w, h, down, bx, by, bw, bh, cb);
+        g.restoreState();
     }
     void drawLinearSlider (juce::Graphics& g, int x, int y, int w, int h,
                            float sliderPos, float minPos, float maxPos,
@@ -83,6 +90,9 @@ private:
     bool btnA = false, btnB = false, btnX = false, btnY = false;
     bool dUp = false, dDown = false, dLeft = false, dRight = false;
     bool lb = false, rb = false;
+    bool l3 = false, r3 = false;
+    float ltVal = 0.f, rtVal = 0.f;
+    float lsX = 0.f, lsY = 0.f, rsX = 0.f, rsY = 0.f;
     bool connected = false;
 
     // Ghostmoon UI

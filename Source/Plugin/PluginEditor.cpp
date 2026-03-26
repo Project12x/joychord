@@ -56,6 +56,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
             param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float>(octaveBox.getSelectedId())));
     };
     octaveBox.setTooltip ("Base octave for chord output");
+    octaveBox.setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    octaveBox.setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible (octaveBox);
 
     // Preset dropdown
@@ -75,6 +77,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
     presetBox.onChange(); // Force initial sync
     presetBox.setTooltip ("Controller button mapping preset");
+    presetBox.setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    presetBox.setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible (presetBox);
 
     // Gamepad controller index
@@ -90,6 +94,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         processor.setControllerIndex (gamepadIndexBox.getSelectedId() - 1);
     };
     gamepadIndexBox.setTooltip ("Select which gamepad to use");
+    gamepadIndexBox.setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    gamepadIndexBox.setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible (gamepadIndexBox);
 
     // Synth Mode selector
@@ -243,6 +249,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         if (idx >= 0 && presetMgr->loadPreset (idx))
             toastOverlay.showToast ("Loaded: " + presetMgr->getCurrentPresetName(), gm::ToastOverlay::Type::Info, 1500);
     };
+    paramPresetBox.setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    paramPresetBox.setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible (paramPresetBox);
 
     presetSaveBtn.setup (" ");
@@ -348,6 +356,14 @@ void JoychordEditor::timerCallback()
     dRight = processor.dRightState.load();
     lb = processor.lbState.load();
     rb = processor.rbState.load();
+    l3 = processor.l3State.load();
+    r3 = processor.r3State.load();
+    ltVal = processor.ltValue.load();
+    rtVal = processor.rtValue.load();
+    lsX = processor.lStickXState.load();
+    lsY = processor.lStickYState.load();
+    rsX = processor.rStickXState.load();
+    rsY = processor.rStickYState.load();
     connected = processor.gamepadConnected.load();
 
     // Drawer slide animation
@@ -801,8 +817,12 @@ void JoychordEditor::paint (juce::Graphics& g)
                 g.setGradientFill (tbev);
                 g.fillRoundedRectangle (ltRect, trigR);
             }
-            g.setColour (juce::Colour (0xff505060));
-            g.setFont (typo.getLabelFont (7.0f));
+            // Analog-scaled glow on LT
+            if (ltVal > 0.05f) {
+                gm::buttons::drawAccentGlow (g, ltRect, trigR, juce::Colour (0xffff4400), 10.0f, 0.25f * ltVal);
+            }
+            g.setColour (ltVal > 0.1f ? juce::Colours::white.withAlpha (0.5f + 0.5f * ltVal) : juce::Colour (0xff505060));
+            g.setFont (typo.getHeaderFont (7.0f));
             g.drawText ("LT", ltRect, juce::Justification::centred);
 
             // Right trigger (RT)
@@ -817,8 +837,12 @@ void JoychordEditor::paint (juce::Graphics& g)
                 g.setGradientFill (tbev);
                 g.fillRoundedRectangle (rtRect, trigR);
             }
-            g.setColour (juce::Colour (0xff505060));
-            g.setFont (typo.getLabelFont (7.0f));
+            // Analog-scaled glow on RT
+            if (rtVal > 0.05f) {
+                gm::buttons::drawAccentGlow (g, rtRect, trigR, accent, 10.0f, 0.25f * rtVal);
+            }
+            g.setColour (rtVal > 0.1f ? juce::Colours::white.withAlpha (0.5f + 0.5f * rtVal) : juce::Colour (0xff505060));
+            g.setFont (typo.getHeaderFont (7.0f));
             g.drawText ("RT", rtRect, juce::Justification::centred);
         }
 
@@ -842,8 +866,9 @@ void JoychordEditor::paint (juce::Graphics& g)
             }
             g.setColour (lb ? juce::Colour (0xffff6633).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
             g.drawRoundedRectangle (lbRect, bumpR, 1.0f);
+            if (lb) gm::buttons::drawAccentGlow (g, lbRect, bumpR, juce::Colour (0xffff4400), 10.0f, 0.3f);
             g.setColour (lb ? juce::Colours::white : juce::Colour (0xff707080));
-            g.setFont (typo.getLabelFont (8.0f));
+            g.setFont (typo.getHeaderFont (8.0f));
             g.drawText ("LB", lbRect, juce::Justification::centred);
 
             // Right bumper
@@ -858,8 +883,9 @@ void JoychordEditor::paint (juce::Graphics& g)
             }
             g.setColour (rb ? accent.brighter (0.3f).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
             g.drawRoundedRectangle (rbRect, bumpR, 1.0f);
+            if (rb) gm::buttons::drawAccentGlow (g, rbRect, bumpR, accent, 10.0f, 0.3f);
             g.setColour (rb ? juce::Colours::white : juce::Colour (0xff707080));
-            g.setFont (typo.getLabelFont (8.0f));
+            g.setFont (typo.getHeaderFont (8.0f));
             g.drawText ("RB", rbRect, juce::Justification::centred);
         }
 
@@ -933,6 +959,12 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.setColour (juce::Colour (0xff383850));
             g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 1.0f);
 
+            // Glow on L3 press
+            if (l3) {
+                auto lsRect = juce::Rectangle<float> (tsx - tsR - 2, tsy - tsR - 2, (tsR + 2) * 2, (tsR + 2) * 2);
+                gm::buttons::drawAccentGlow (g, lsRect, tsR + 2, accent, 10.0f, 0.3f);
+            }
+
             // Grip texture (concentric rings)
             g.setColour (juce::Colour (0xff202035));
             g.drawEllipse (tsx - 6, tsy - 6, 12, 12, 0.6f);
@@ -957,6 +989,12 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.setColour (juce::Colour (0xff383850));
             g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 1.0f);
 
+            // Glow on R3 press
+            if (r3) {
+                auto rsRect = juce::Rectangle<float> (tsx - tsR - 2, tsy - tsR - 2, (tsR + 2) * 2, (tsR + 2) * 2);
+                gm::buttons::drawAccentGlow (g, rsRect, tsR + 2, accent, 10.0f, 0.3f);
+            }
+
             g.setColour (juce::Colour (0xff202035));
             g.drawEllipse (tsx - 6, tsy - 6, 12, 12, 0.6f);
             g.drawEllipse (tsx - 3, tsy - 3, 6, 6, 0.4f);
@@ -974,7 +1012,7 @@ void JoychordEditor::paint (juce::Graphics& g)
                 gm::buttons::drawAccentGlow (g, area, 6.0f, grey, 8.0f, 0.2f);
             }
             g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff505064));
-            g.setFont (typo.getLabelFont (9.0f));
+            g.setFont (typo.getHeaderFont (9.0f));
             g.drawText (label, area.toNearestInt(), juce::Justification::centred);
         };
 
@@ -1011,7 +1049,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.drawEllipse (btnRect, 1.5f);
 
         g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff909090));
-        g.setFont (typo.getLabelFont (10.0f));
+        g.setFont (typo.getHeaderFont (10.0f));
         g.drawText (label, x - radius, y - radius, radius * 2, radius * 2, juce::Justification::centred);
     };
 
@@ -1039,14 +1077,14 @@ void JoychordEditor::paint (juce::Graphics& g)
         }
     };
 
-    drawRoleLabel (ButtonId::Y, faceCx + r + 12,            controlsY - spacing - 5, juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30, controlsY - 5,           juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::Y, faceCx + r + 12,            controlsY - 26 - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30 + 10 - 5, controlsY - 5 + 8,  juce::Justification::centredRight);
     drawRoleLabel (ButtonId::B, faceCx + spacing + r + 12,  controlsY - 5,           juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::A, faceCx + r + 12,            controlsY + spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::A, faceCx + r + 12 + 5 - 10,  controlsY + 26 - 5, juce::Justification::centredLeft);
 
     drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 12,       controlsY - 26 - 5, juce::Justification::centredRight);
     drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 12, controlsY - 5,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 - 16, controlsY - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 - 16 - 5, controlsY - 5 - 10, juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 12,       controlsY + 26 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──

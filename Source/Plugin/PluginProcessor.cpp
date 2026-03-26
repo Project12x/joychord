@@ -449,6 +449,14 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     dRightState.store (gp.dRight);
     lbState.store (gp.lb);
     rbState.store (gp.rb);
+    l3State.store (gp.l3);
+    r3State.store (gp.r3);
+    ltValue.store (gp.lt);
+    rtValue.store (gp.rt);
+    lStickXState.store (gp.lStickX);
+    lStickYState.store (gp.lStickY);
+    rStickXState.store (gp.rStickX);
+    rStickYState.store (gp.rStickY);
 
     // Sync APVTS params to ChordEngine
     int keyVal   = static_cast<int> (*apvts.getRawParameterValue ("key"));

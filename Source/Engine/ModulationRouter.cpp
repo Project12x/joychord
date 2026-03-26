@@ -54,7 +54,7 @@ void ModulationRouter::setAxisTarget (ControlAxis axis, ModTarget target)
         // Queue cleanup CC to be flushed next processBlock (can't inject into midi buffer here)
         switch (oldTarget)
         {
-            case ModTarget::Volume:          pendingCCs.push ({7, 100}); break; // restore full volume
+            case ModTarget::Volume:          pendingCCs.push ({7, 127}); break; // restore full volume
             case ModTarget::ModWheel:        pendingCCs.push ({1,   0}); break;
             case ModTarget::Expression:      pendingCCs.push ({11, 127}); break; // restore expression
             case ModTarget::FilterCutoff:    pendingCCs.push ({74, 64}); break;
@@ -65,7 +65,21 @@ void ModulationRouter::setAxisTarget (ControlAxis axis, ModTarget target)
             default: break;
         }
         if (oldTarget == ModTarget::PitchBend && bendCallback)
-            bendCallback (8192); // center pitch bend (can call from UI thread -- it's a lambda)
+            bendCallback (8192); // center pitch bend
+
+        // Also reset parameter-modulated values back to neutral
+        if (paramCallback)
+        {
+            const char* paramId = targetToParamId (oldTarget);
+            if (paramId)
+            {
+                // Restore to a sensible default (1.0 = full for volume/expression, 0.0 for effects)
+                float neutral = 0.0f;
+                if (oldTarget == ModTarget::Volume)          neutral = 1.0f;
+                else if (oldTarget == ModTarget::FilterCutoff)    neutral = 0.5f; // center
+                paramCallback (paramId, neutral);
+            }
+        }
     }
 
     axisTargets[idx] = target;
