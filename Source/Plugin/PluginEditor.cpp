@@ -246,7 +246,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     dpiScaleBox.addItem ("125%", 2);
     dpiScaleBox.addItem ("150%", 3);
     dpiScaleBox.addItem ("200%", 4);
-    dpiScaleBox.setSelectedId (1, juce::dontSendNotification);
+    dpiScaleBox.setSelectedId (2, juce::dontSendNotification);
+    applyDpiScale (1.25f);  // Apply default 125% on startup
     dpiScaleBox.onChange = [this] {
         float scales[] = { 1.0f, 1.25f, 1.5f, 2.0f };
         int idx = dpiScaleBox.getSelectedId() - 1;
@@ -1124,8 +1125,8 @@ void JoychordEditor::resized()
     // DPI scale dropdown (right side of status bar, before version text)
     {
         int sbY = getHeight() - statusH;
-        dpiLabel.setBounds (mainWidth - 140, sbY + 2, 30, statusH - 4);
-        dpiScaleBox.setBounds (mainWidth - 108, sbY + 3, 55, statusH - 6);
+        dpiLabel.setBounds (mainWidth - 155, sbY + 2, 38, statusH - 4);
+        dpiScaleBox.setBounds (mainWidth - 115, sbY + 3, 60, statusH - 6);
     }
 
     // Effects drawer
