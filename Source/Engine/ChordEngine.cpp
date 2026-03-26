@@ -33,7 +33,7 @@ const char* ChordEngine::noteName (int midiNote)
 
 // ── Scale intervals ──────────────────────────────────────────────────────────
 
-std::vector<int> ChordEngine::scaleIntervals (ScaleMode mode)
+FixedArray<int, 12> ChordEngine::scaleIntervals (ScaleMode mode)
 {
     // Semitone offsets of each scale degree (1-7) from root
     switch (mode)
@@ -51,7 +51,7 @@ std::vector<int> ChordEngine::scaleIntervals (ScaleMode mode)
 
 // ── Chord intervals per degree ───────────────────────────────────────────────
 
-std::vector<int> ChordEngine::chordIntervalsForDegree (int degree, ScaleMode mode)
+FixedArray<int, 12> ChordEngine::chordIntervalsForDegree (int degree, ScaleMode mode)
 {
     auto si = scaleIntervals(mode);
     int numDegrees = static_cast<int>(si.size());
@@ -75,10 +75,10 @@ std::vector<int> ChordEngine::chordIntervalsForDegree (int degree, ScaleMode mod
 
 // ── Build chord ──────────────────────────────────────────────────────────────
 
-std::vector<int> ChordEngine::buildChord (int rootMidi, const std::vector<int>& triadIntervals,
+FixedArray<int, 12> ChordEngine::buildChord (int rootMidi, const FixedArray<int, 12>& triadIntervals,
                                             int extension, int inversion) const
 {
-    std::vector<int> intervals = triadIntervals;
+    FixedArray<int, 12> intervals = triadIntervals;
 
     // Apply extensions
     switch (extension)
@@ -114,7 +114,7 @@ std::vector<int> ChordEngine::buildChord (int rootMidi, const std::vector<int>& 
     }
 
     // Build absolute MIDI notes
-    std::vector<int> notes;
+    FixedArray<int, 12> notes;
     for (auto i : intervals)
     {
         int note = rootMidi + i;
@@ -170,10 +170,13 @@ std::vector<int> ChordEngine::buildChord (int rootMidi, const std::vector<int>& 
         }
 
         // Final safety: remove any notes still outside 0-127
-        notes.erase(
-            std::remove_if(notes.begin(), notes.end(),
-                [](int n) { return n < 0 || n > 127; }),
-            notes.end());
+        int j = 0;
+        for (int i = 0; i < notes.size(); ++i) {
+            if (notes[i] >= 0 && notes[i] <= 127) {
+                notes[j++] = notes[i];
+            }
+        }
+        notes.count = j;
     }
 
     return notes;
@@ -181,9 +184,9 @@ std::vector<int> ChordEngine::buildChord (int rootMidi, const std::vector<int>& 
 
 // ── Chord naming ─────────────────────────────────────────────────────────────
 
-std::string ChordEngine::chordName (int rootMidi, const std::vector<int>& intervals, int extension)
+FixedString<32> ChordEngine::chordName (int rootMidi, const FixedArray<int, 12>& intervals, int extension)
 {
-    std::string name = noteName(rootMidi);
+    FixedString<32> name(noteName(rootMidi));
 
     if (intervals.size() < 2)
         return name;
@@ -231,12 +234,12 @@ std::string ChordEngine::chordName (int rootMidi, const std::vector<int>& interv
 
 // ── Dijkstra voicing scorer ──────────────────────────────────────────────────
 
-void ChordEngine::commitVoicing (const std::vector<int>& notes)
+void ChordEngine::commitVoicing (const FixedArray<int, 12>& notes)
 {
     previousNotes = notes;
 }
 
-int ChordEngine::scoreVoicing (const std::vector<int>& candidate, int rootMidi) const
+int ChordEngine::scoreVoicing (const FixedArray<int, 12>& candidate, int rootMidi) const
 {
     if (previousNotes.empty())
         return 0; // no previous chord, all voicings equally good
@@ -277,7 +280,7 @@ int ChordEngine::scoreVoicing (const std::vector<int>& candidate, int rootMidi) 
     return totalDistance;
 }
 
-std::vector<int> ChordEngine::bestVoicing (int rootMidi, const std::vector<int>& intervals,
+FixedArray<int, 12> ChordEngine::bestVoicing (int rootMidi, const FixedArray<int, 12>& intervals,
                                              int extension) const
 {
     if (previousNotes.empty())
@@ -291,7 +294,7 @@ std::vector<int> ChordEngine::bestVoicing (int rootMidi, const std::vector<int>&
     maxInv = std::min(maxInv, 3); // cap at 3rd inversion
 
     int bestScore = std::numeric_limits<int>::max();
-    std::vector<int> best;
+    FixedArray<int, 12> best;
 
     for (int inv = 0; inv < maxInv; ++inv)
     {
@@ -324,7 +327,7 @@ ChordResult ChordEngine::resolve (int degree, int extension, int inversion) cons
     // Get chord intervals for this degree
     auto intervals = chordIntervalsForDegree(degree, scale);
 
-    std::vector<int> notes;
+    FixedArray<int, 12> notes;
     if (inversion >= 0)
     {
         // Explicit inversion requested
@@ -365,7 +368,7 @@ ChordResult ChordEngine::resolveBorrowed (int degree, ScaleMode sourceScale,
     // Get chord intervals from the source scale
     auto intervals = chordIntervalsForDegree(degree, sourceScale);
 
-    std::vector<int> notes;
+    FixedArray<int, 12> notes;
     if (inversion >= 0)
         notes = buildChord(rootMidi, intervals, extension, inversion);
     else
@@ -386,7 +389,7 @@ ChordResult ChordEngine::resolveBorrowed (int degree, ScaleMode sourceScale,
 ChordResult ChordEngine::resolveChromatic (int rootMidi, int quality) const
 {
     // Fixed chord regardless of key
-    std::vector<int> intervals;
+    FixedArray<int, 12> intervals;
 
     switch (quality)
     {

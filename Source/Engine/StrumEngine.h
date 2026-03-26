@@ -1,7 +1,7 @@
 #pragma once
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <vector>
+#include "ChordEngine.h"
 
 struct PendingNote {
     int noteNumber;
@@ -18,7 +18,7 @@ public:
     void setStrumSpeedMs (float ms) { strumSpeedMs = std::max(0.0f, ms); }
 
     // Enqueue a set of notes to be strummed
-    void triggerNotes (const std::vector<int>& notes, float velocity, double sampleRate);
+    void triggerNotes (const FixedArray<int, 16>& notes, float velocity, double sampleRate);
 
     // Cancel a specific note if it's in the pending queue (e.g. if released before it played)
     void cancelNote (int noteNumber);
@@ -31,5 +31,5 @@ public:
 
 private:
     float strumSpeedMs = 0.0f;
-    std::vector<PendingNote> pendingNotes;
+    FixedArray<PendingNote, 64> pendingNotes;
 };

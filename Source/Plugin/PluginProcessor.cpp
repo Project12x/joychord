@@ -472,8 +472,8 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     // ── Phase 2: Process chord-producing roles ──
 
-    std::set<int> wantedNotes;
-    juce::String chordDisplay;
+    FixedArray<int, 32> wantedNotes;
+    FixedString<64> chordDisplay;
 
     for (auto btn : allButtons)
     {
@@ -507,49 +507,57 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
             if (producedNotes)
             {
-                for (int n : result.midiNotes)
+                for (int i = 0; i < result.midiNotes.size(); ++i)
                 {
-                    wantedNotes.insert (n);
-                    if (n > 96)
-                        spdlog::warn ("GHOST? ChordEngine produced high note: {} (name: {})", n, result.name);
+                    int n = result.midiNotes[i];
+                    bool found = false;
+                    for (int w = 0; w < wantedNotes.size(); ++w) {
+                        if (wantedNotes[w] == n) { found = true; break; }
+                    }
+                    if (!found) wantedNotes.push_back(n);
                 }
 
-                if (chordDisplay.isNotEmpty())
+                if (!chordDisplay.empty())
                     chordDisplay += " + ";
-                chordDisplay += juce::String (result.name);
+                chordDisplay += result.name.c_str();
             }
         }, role);
     }
 
     // ── Phase 3: Note diff -> MIDI events ──
 
-    std::vector<int> notesToTurnOff;
-    std::set_difference (activeNotes.begin(), activeNotes.end(),
-                         wantedNotes.begin(), wantedNotes.end(),
-                         std::back_inserter (notesToTurnOff));
+    FixedArray<int, 32> notesToTurnOff;
+    for (int i = 0; i < activeNotes.size(); ++i) {
+        int an = activeNotes[i];
+        bool found = false;
+        for (int j = 0; j < wantedNotes.size(); ++j) {
+            if (wantedNotes[j] == an) { found = true; break; }
+        }
+        if (!found) notesToTurnOff.push_back(an);
+    }
 
-    for (int note : notesToTurnOff)
+    for (int i = 0; i < notesToTurnOff.size(); ++i)
     {
-        spdlog::debug ("NoteOff: {}", note);
+        int note = notesToTurnOff[i];
         midi.addEvent (juce::MidiMessage::noteOff (1, note, 0.0f), 0);
         strumEngine.cancelNote (note); // Remove from pending queue if not yet fired
     }
 
-    std::vector<int> notesToTurnOn;
-    std::set_difference (wantedNotes.begin(), wantedNotes.end(),
-                         activeNotes.begin(), activeNotes.end(),
-                         std::back_inserter (notesToTurnOn));
-
-    for (int note : notesToTurnOn)
-        spdlog::debug ("NoteOn queued: {}{}", note, note > 96 ? " *** GHOST CANDIDATE ***" : "");
+    FixedArray<int, 32> notesToTurnOn;
+    for (int i = 0; i < wantedNotes.size(); ++i) {
+        int wn = wantedNotes[i];
+        bool found = false;
+        for (int j = 0; j < activeNotes.size(); ++j) {
+            if (activeNotes[j] == wn) { found = true; break; }
+        }
+        if (!found) notesToTurnOn.push_back(wn);
+    }
 
     if (!notesToTurnOn.empty())
-        strumEngine.triggerNotes (notesToTurnOn, 0.8f, getSampleRate());
-
-    if (!notesToTurnOn.empty() || !notesToTurnOff.empty())
     {
-        spdlog::debug ("ActiveNotes prev: {}, TurnOn: {}, TurnOff: {}, ActiveNotes next: {}", 
-            activeNotes.size(), notesToTurnOn.size(), notesToTurnOff.size(), wantedNotes.size());
+        FixedArray<int, 16> strumNotes; // max 16 notes for strumming
+        for (int i = 0; i < notesToTurnOn.size() && i < 16; ++i) strumNotes.push_back(notesToTurnOn[i]);
+        strumEngine.triggerNotes (strumNotes, 0.8f, getSampleRate());
     }
 
     activeNotes = wantedNotes;
@@ -558,17 +566,18 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     if (wantedNotes.empty())
     {
         currentChordRoot.store (-1);
-        lastChordName = "";
+        lastChordName = FixedString<64>();
     }
     else
     {
-        currentChordRoot.store (*wantedNotes.begin());
+        currentChordRoot.store (wantedNotes[0]);
         lastChordName = chordDisplay;
     }
 
     if (! wantedNotes.empty())
     {
-        std::vector<int> vNotes (wantedNotes.begin(), wantedNotes.end());
+        FixedArray<int, 12> vNotes;
+        for (int i = 0; i < wantedNotes.size() && i < 12; ++i) vNotes.push_back(wantedNotes[i]);
         chordEngine.commitVoicing (vNotes);
     }
 
@@ -651,12 +660,10 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 auto msg = meta.getMessage();
                 if (msg.isNoteOn())
                 {
-                    spdlog::trace ("TSF NoteOn: {} vel: {:.2f}", msg.getNoteNumber(), msg.getFloatVelocity());
                     tsf_note_on (tsfSynth, 0, msg.getNoteNumber(), msg.getFloatVelocity());
                 }
                 else if (msg.isNoteOff())
                 {
-                    spdlog::trace ("TSF NoteOff: {} vel: {:.2f}", msg.getNoteNumber(), msg.getFloatVelocity());
                     tsf_note_off (tsfSynth, 0, msg.getNoteNumber());
                 }
                 else if (msg.isPitchWheel())
@@ -697,12 +704,10 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
                     if (msg.isNoteOn())
                     {
-                        spdlog::trace ("SFZ NoteOn: {} vel: {:.2f} time: {}", msg.getNoteNumber(), msg.getFloatVelocity(), time);
                         sfzSynth->hdNoteOn (time, msg.getNoteNumber(), msg.getFloatVelocity());
                     }
                     else if (msg.isNoteOff())
                     {
-                        spdlog::trace ("SFZ NoteOff: {} vel: {:.2f} time: {}", msg.getNoteNumber(), msg.getFloatVelocity(), time);
                         sfzSynth->hdNoteOff (time, msg.getNoteNumber(), msg.getFloatVelocity());
                     }
                     else if (msg.isPitchWheel())

@@ -348,9 +348,9 @@ void JoychordEditor::timerCallback()
     loadSfzBtn.setVisible (static_cast<int>(processor.apvts.getParameterAsValue("synthMode").getValue()) == 3);
 
     // Set chord label with glow effect when playing
-    if (processor.lastChordName.isNotEmpty())
+    if (!processor.lastChordName.empty())
     {
-        chordLabel.setText (processor.lastChordName, juce::dontSendNotification);
+        chordLabel.setText (juce::String(processor.lastChordName.c_str()), juce::dontSendNotification);
         chordLabel.setColour (juce::Label::textColourId, juce::Colour (0xffffffff));
     }
     else
@@ -551,7 +551,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     }
 
     // ── CHORD READOUT GLOW (melatonin blur) ──
-    if (processor.lastChordName.isNotEmpty())
+    if (!processor.lastChordName.empty())
     {
         float glowCx = (float)(canvasX + canvasW / 2);
         float glowW = 200.0f;
@@ -565,10 +565,10 @@ void JoychordEditor::paint (juce::Graphics& g)
     // ── CHORD TEXT with drop shadow ──
     {
         auto chordArea = juce::Rectangle<int> (canvasX, 20, canvasW, 150);
-        auto chordText = processor.lastChordName.isNotEmpty()
-                             ? processor.lastChordName
+        auto chordText = !processor.lastChordName.empty()
+                             ? juce::String(processor.lastChordName.c_str())
                              : juce::String ("---");
-        auto chordCol  = processor.lastChordName.isNotEmpty()
+        auto chordCol  = !processor.lastChordName.empty()
                              ? juce::Colour (0xffffffff)
                              : juce::Colour (0xff606080);
 
@@ -579,7 +579,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.setColour (juce::Colour (0x60000000));
         g.drawText (chordText, chordArea.translated (0, 3), juce::Justification::centred);
         // Accent underglow on text
-        if (processor.lastChordName.isNotEmpty())
+        if (!processor.lastChordName.empty())
         {
             g.setColour (accent.withAlpha (0.08f));
             g.drawText (chordText, chordArea.translated (0, 1), juce::Justification::centred);

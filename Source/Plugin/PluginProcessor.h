@@ -21,7 +21,6 @@
 #include "Synth/GhostmoonVoice.h"
 #include "Engine/ModulationRouter.h"
 #include "Input/XInputGamepad.h"
-#include <set>
 
 #if JOYCHORD_HAS_SFIZZ
 #include <sfizz.hpp>
@@ -68,7 +67,7 @@ public:
     std::atomic<bool> dUpState{false}, dDownState{false}, dLeftState{false}, dRightState{false};
     std::atomic<bool> lbState{false}, rbState{false};
     std::atomic<bool> gamepadConnected{false};
-    juce::String lastChordName;
+    FixedString<64> lastChordName;
 
     // Gamepad setup
     void setControllerIndex (int idx) { gamepad.setControllerIndex (idx); }
@@ -112,7 +111,7 @@ private:
     std::vector<float> tsfInterleavedBuffer;
 
     // Active MIDI notes for proper note-off tracking
-    std::set<int> activeNotes;
+    FixedArray<int, 32> activeNotes;
 
     // Tracker for dynamic polyphony gain (Equal Power: 1 / sqrt(N))
     float currentPolyGain = 1.0f;
