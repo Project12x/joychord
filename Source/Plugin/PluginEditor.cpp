@@ -768,7 +768,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── LEFT THUMBSTICK ──
         {
-            float tsx = (float)dpadCx + 10.0f;
+            float tsx = (float)dpadCx + 18.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -795,7 +795,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── RIGHT THUMBSTICK ──
         {
-            float tsx = (float)faceCx - 10.0f;
+            float tsx = (float)faceCx - 18.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -1004,12 +1004,12 @@ void JoychordEditor::resized()
     // FX drawer button
     fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), knobY + 20, 40, 40);
 
-    // LED Meters (horizontal, under knob row)
-    int meterH = 10;
+    // LED Meters (horizontal, stacked vertically under knob row)
+    int meterH = 8;
     int meterW = 3 * (knobW + knobGap) - knobGap;  // span all 3 knobs
     int meterY = knobY + knobH + 4;
-    meterL.setBounds (knobStartX, meterY, meterW / 2 - 2, meterH);
-    meterR.setBounds (knobStartX + meterW / 2 + 2, meterY, meterW / 2 - 2, meterH);
+    meterL.setBounds (knobStartX, meterY, meterW, meterH);
+    meterR.setBounds (knobStartX, meterY + meterH + 2, meterW, meterH);
 
     // Toast overlay (full canvas area for centered toast messages)
     toastOverlay.setBounds (sidebarWidth, 0, canvasW, getHeight());

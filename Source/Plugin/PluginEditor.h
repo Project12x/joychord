@@ -4,6 +4,7 @@
 #include "DarkMetallicTheme.h"
 #include "ComboBoxStyles.h"
 #include "LEDMeter.h"
+#include "LEDMeterH.h"
 #include "Knob.h"
 #include "KnobStyles.h"
 #include "HSlider.h"
@@ -78,7 +79,7 @@ private:
 
     // Ghostmoon UI
     JoychordTheme darkTheme;
-    gm::LEDMeter meterL, meterR;
+    gm::LEDMeterH meterL, meterR;
 
     // Melatonin blur shadows (cached, GPU-accelerated)
     melatonin::DropShadow chordGlow { juce::Colour (0xff00ccff).withAlpha (0.35f), 24, { 0, 4 } };
