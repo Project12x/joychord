@@ -1,16 +1,18 @@
 #include "ModulationRouter.h"
+// juce::MidiBuffer is available from the JUCE unity build — no explicit include needed
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 ModulationRouter::ModulationRouter()
 {
     // Default axis assignments (matching previous hardcoded behavior)
     axisTargets[static_cast<int>(ControlAxis::LStickX)]  = ModTarget::PitchBend;
     axisTargets[static_cast<int>(ControlAxis::LStickY)]  = ModTarget::None;
-    axisTargets[static_cast<int>(ControlAxis::RStickX)]  = ModTarget::FilterCutoff;
-    axisTargets[static_cast<int>(ControlAxis::RStickY)]  = ModTarget::ReverbMix;
+    axisTargets[static_cast<int>(ControlAxis::RStickX)]  = ModTarget::None;
+    axisTargets[static_cast<int>(ControlAxis::RStickY)]  = ModTarget::None;
     axisTargets[static_cast<int>(ControlAxis::LTrigger)] = ModTarget::ModWheel;
-    axisTargets[static_cast<int>(ControlAxis::RTrigger)] = ModTarget::Expression;
+    axisTargets[static_cast<int>(ControlAxis::RTrigger)] = ModTarget::None;
 
     for (int i = 0; i < kNumAxes; ++i)
     {
@@ -26,11 +28,49 @@ void ModulationRouter::setCallbacks (MidiCCCallback ccCb, PitchBendCallback bend
     paramCallback = std::move (paramCb);
 }
 
+bool ModulationRouter::popPendingCC (int& cc, int& value)
+{
+    PendingCC item;
+    if (!pendingCCs.pop (item))
+        return false;
+    cc    = item.cc;
+    value = item.value;
+    return true;
+}
+
 void ModulationRouter::setAxisTarget (ControlAxis axis, ModTarget target)
 {
     int idx = static_cast<int>(axis);
-    if (idx >= 0 && idx < kNumAxes)
-        axisTargets[idx] = target;
+    if (idx < 0 || idx >= kNumAxes)
+        return;
+
+    ModTarget oldTarget = axisTargets[idx];
+    if (oldTarget == target)
+        return;
+
+    // Restore the old target to a safe neutral value before switching
+    if (oldTarget != ModTarget::None)
+    {
+        // Queue cleanup CC to be flushed next processBlock (can't inject into midi buffer here)
+        switch (oldTarget)
+        {
+            case ModTarget::Volume:          pendingCCs.push ({7, 100}); break; // restore full volume
+            case ModTarget::ModWheel:        pendingCCs.push ({1,   0}); break;
+            case ModTarget::Expression:      pendingCCs.push ({11, 127}); break; // restore expression
+            case ModTarget::FilterCutoff:    pendingCCs.push ({74, 64}); break;
+            case ModTarget::FilterResonance: pendingCCs.push ({71,  0}); break;
+            case ModTarget::ReverbMix:       pendingCCs.push ({91,  0}); break;
+            case ModTarget::ChorusDepth:     pendingCCs.push ({93,  0}); break;
+            case ModTarget::DelayMix:        pendingCCs.push ({12,  0}); break;
+            default: break;
+        }
+        if (oldTarget == ModTarget::PitchBend && bendCallback)
+            bendCallback (8192); // center pitch bend (can call from UI thread -- it's a lambda)
+    }
+
+    axisTargets[idx] = target;
+    prevOutput[idx]  = -1;   // force first dispatch to fire
+    smoothed[idx]    = 0.0f; // reset EMA state
 }
 
 ModTarget ModulationRouter::getAxisTarget (ControlAxis axis) const
@@ -117,7 +157,25 @@ void ModulationRouter::dispatchAxis (ControlAxis axis, float rawValue, bool bipo
             break;
         }
 
-        // Direct parameter modulation targets
+        // Param-only targets (no MIDI CC output)
+        case ModTarget::PitchShiftAudio:
+        {
+            if (paramCallback)
+            {
+                const char* paramId = targetToParamId (target);
+                if (paramId)
+                {
+                    // Triggers are unipolar [0,1]; sticks are bipolar [-1,1]
+                    // For pitch: map [0,1] -> [-12,12] semitones
+                    float normalized = bipolar ? (smoothed[idx] + 1.0f) * 0.5f
+                                               : smoothed[idx];
+                    paramCallback (paramId, normalized);
+                }
+            }
+            break;
+        }
+
+        // Direct parameter modulation targets (also emit MIDI CC for external use)
         case ModTarget::FilterCutoff:
         case ModTarget::FilterResonance:
         case ModTarget::ReverbMix:
@@ -125,10 +183,10 @@ void ModulationRouter::dispatchAxis (ControlAxis axis, float rawValue, bool bipo
         case ModTarget::DelayMix:
         case ModTarget::Volume:
         {
-            // Map to MIDI CC for external use
+            // MIDI CC for external hosts
             if (ccCallback)
             {
-                int ccNum = 74; // default
+                int ccNum = 74;
                 switch (target)
                 {
                     case ModTarget::FilterCutoff:    ccNum = 74; break;
@@ -147,14 +205,12 @@ void ModulationRouter::dispatchAxis (ControlAxis axis, float rawValue, bool bipo
                     prevOutput[idx] = val;
                 }
             }
-
-            // Direct APVTS parameter modulation
+            // Also drive APVTS param directly
             if (paramCallback)
             {
                 const char* paramId = targetToParamId (target);
                 if (paramId)
                 {
-                    // Normalize to [0, 1] for APVTS
                     float normalized = bipolar ? (smoothed[idx] + 1.0f) * 0.5f
                                                : smoothed[idx];
                     paramCallback (paramId, normalized);
@@ -203,6 +259,7 @@ const char* ModulationRouter::targetToParamId (ModTarget t)
         case ModTarget::DelayMix:        return "delayMix";
         case ModTarget::Volume:          return "masterVolume";
         case ModTarget::WahPosition:     return "wahPosition";
+        case ModTarget::PitchShiftAudio: return "pitchShiftAudio";
         default:                         return nullptr;
     }
 }

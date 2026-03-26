@@ -106,6 +106,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     layout.add (std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID ("wahEnabled", 1), "Wah Enabled", false));
 
+    // Audio Pitch Shifter (SignalSmith)
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("pitchShiftAudio", 1), "Pitch Shift",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f));
+
     layout.add (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID ("chorusRate", 1), "Chorus Rate",
         juce::NormalisableRange<float> (0.1f, 5.0f, 0.01f), 0.5f));
@@ -280,26 +285,67 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     pingPongDelay.prepare (static_cast<float> (sampleRate));
     shimmerReverb.prepare (static_cast<float> (sampleRate));
 
-    // Param smoothers
-    smoothReverbDecay.prepare (sampleRate);
-    smoothReverbDamp.prepare (sampleRate);
-    smoothReverbMix.prepare (sampleRate);
-    smoothFilterCutoff.prepare (sampleRate);
-    smoothFilterRes.prepare (sampleRate);
-    smoothChorusRate.prepare (sampleRate);
-    smoothChorusMix.prepare (sampleRate);
-    smoothCompThresh.prepare (sampleRate);
-    smoothCompRatio.prepare (sampleRate);
-    smoothFlangerRate.prepare (sampleRate);
-    smoothFlangerMix.prepare (sampleRate);
-    smoothPhaserRate.prepare (sampleRate);
-    smoothPhaserMix.prepare (sampleRate);
-    smoothDelayTime.prepare (sampleRate);
-    smoothDelayFb.prepare (sampleRate);
-    smoothDelayMix.prepare (sampleRate);
-    smoothShimmerDecay.prepare (sampleRate);
-    smoothShimmerAmt.prepare (sampleRate);
-    smoothShimmerMix.prepare (sampleRate);
+    // Param smoothers — prepare then snap to current APVTS value.
+    // Without snapTo(), each smoother starts at 0 and ramps slowly,
+    // making knobs appear broken until the smoother converges.
+    auto snap = [&](gm::ParamSmoother<float>& s, double sr, const char* id)
+    {
+        s.prepare (sr);
+        s.snapTo (apvts.getRawParameterValue (id)->load());
+    };
+
+    snap (smoothReverbDecay,  sampleRate, "reverbDecay");
+    snap (smoothReverbDamp,   sampleRate, "reverbDamp");
+    snap (smoothReverbMix,    sampleRate, "reverbMix");
+    snap (smoothFilterCutoff, sampleRate, "filterCutoff");
+    snap (smoothFilterRes,    sampleRate, "filterRes");
+    snap (smoothChorusRate,   sampleRate, "chorusRate");
+    snap (smoothChorusMix,    sampleRate, "chorusMix");
+    snap (smoothCompThresh,   sampleRate, "compThreshold");
+    snap (smoothCompRatio,    sampleRate, "compRatio");
+    snap (smoothFlangerRate,  sampleRate, "flangerRate");
+    snap (smoothFlangerMix,   sampleRate, "flangerMix");
+    snap (smoothPhaserRate,   sampleRate, "phaserRate");
+    snap (smoothPhaserMix,    sampleRate, "phaserMix");
+    snap (smoothDelayTime,    sampleRate, "delayTime");
+    snap (smoothDelayFb,      sampleRate, "delayFeedback");
+    snap (smoothDelayMix,     sampleRate, "delayMix");
+    snap (smoothShimmerDecay, sampleRate, "shimmerDecay");
+    snap (smoothShimmerAmt,   sampleRate, "shimmerAmount");
+    snap (smoothShimmerMix,   sampleRate, "shimmerMix");
+    smoothPitchShift.prepare (sampleRate);
+    smoothPitchShift.snapTo (0.0f);  // pitch shift starts at 0 semitones
+
+    // Prepare filter DSP (sets internal sample rate and coefficients)
+    filterL.prepare (sampleRate);
+    filterR.prepare (sampleRate);
+    filterL.setFreq (apvts.getRawParameterValue ("filterCutoff")->load());
+    filterR.setFreq (apvts.getRawParameterValue ("filterCutoff")->load());
+
+
+    // Wire modulation router callbacks once (not every processBlock)
+    // paramCallback writes APVTS raw atomics directly (RT-safe: std::atomic<float>::store)
+    // For pitchShift, we use a separate atomic to avoid APVTS's range conversion overhead
+    modulationRouter.setCallbacks (
+        [this](int, int) { /* MIDI CC flushed per-block via processBlock callback override */ },
+        [this](int)      { /* PitchBend flushed per-block */ },
+        [this](const char* paramId, float normalizedValue) {
+            if (!paramId) return;
+            if (std::strcmp (paramId, "pitchShiftAudio") == 0)
+            {
+                pitchShiftTarget.store (normalizedValue * 24.0f - 12.0f,
+                                        std::memory_order_relaxed);
+                return;
+            }
+            // All other APVTS params: convert normalized [0,1] to raw value and store directly.
+            // getRawParameterValue returns std::atomic<float>* to the denormalized value.
+            // convertFrom0to1 maps the [0,1] input to the param's native range.
+            if (auto* param = apvts.getParameter (juce::String (paramId)))
+                if (auto* raw = apvts.getRawParameterValue (juce::String (paramId)))
+                    raw->store (param->convertFrom0to1 (normalizedValue),
+                                std::memory_order_relaxed);
+        }
+    );
 
     startTimerHz (100);
 }
@@ -588,14 +634,52 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     strumEngine.process (midi, buffer.getNumSamples());
 
     // ── Phase 3b: Modulation Router ──
-    // Route analog sticks and triggers to MIDI CC / pitch bend.
-    // Callbacks inject events into the midi buffer at position 0.
+    // Drain any cleanup CCs queued by setAxisTarget (e.g. CC7=100 when leaving Volume)
+    { int cc, val; while (modulationRouter.popPendingCC (cc, val))
+        midi.addEvent (juce::MidiMessage::controllerEvent (1, cc, val), 0); }
+
+    // Re-set MIDI-injecting callbacks + full APVTS param callback
     modulationRouter.setCallbacks (
         [&midi](int cc, int value) {
             midi.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
         },
         [&midi](int bendValue) {
             midi.addEvent (juce::MidiMessage::pitchWheel (1, bendValue), 0);
+        },
+        [this](const char* paramId, float normalizedValue) {
+            if (!paramId) return;
+            if (std::strcmp (paramId, "pitchShiftAudio") == 0)
+            {
+                pitchShiftTarget.store (normalizedValue * 24.0f - 12.0f,
+                                        std::memory_order_relaxed);
+                return;
+            }
+            // Floor modulation: the knob (param->getValue()) sets the minimum.
+            // The axis sweeps from the knob value (floor) up to 1.0 (full range).
+            // param->getValue() is normalized [0,1] and is ONLY updated by the knob
+            // via setValueNotifyingHost -- never by the raw atomic write below.
+            // So knob = floor, axis modulates above it.
+            if (auto* raw = apvts.getRawParameterValue (juce::String (paramId)))
+            {
+                auto* param = apvts.getParameter (juce::String (paramId));
+                if (!param) return;
+                float floor = param->getValue();   // normalized [0,1], only changed by knob
+
+                if (auto* apf = dynamic_cast<juce::AudioParameterFloat*> (param))
+                {
+                    float modded = floor + normalizedValue * (1.0f - floor);
+                    raw->store (apf->range.convertFrom0to1 (modded),
+                                std::memory_order_relaxed);
+                }
+                else if (auto* api = dynamic_cast<juce::AudioParameterInt*> (param))
+                {
+                    float modded = floor + normalizedValue * (1.0f - floor);
+                    float denorm = api->getRange().getStart() +
+                                   modded * (api->getRange().getEnd() -
+                                             api->getRange().getStart());
+                    raw->store (denorm, std::memory_order_relaxed);
+                }
+            }
         }
     );
 
@@ -778,6 +862,8 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         float shDecay  = apvts.getRawParameterValue ("shimmerDecay")->load();
         float shAmt    = apvts.getRawParameterValue ("shimmerAmount")->load();
         float shMix    = apvts.getRawParameterValue ("shimmerMix")->load();
+        // Pitch shift: read from atomic set by modulation router (RT-safe, avoids APVTS round-trip)
+        float pitchShift = pitchShiftTarget.load (std::memory_order_relaxed);
 
         int   dtBits   = static_cast<int> (*apvts.getRawParameterValue ("ditherBits"));
 
@@ -825,14 +911,15 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             float sShDecay = smoothShimmerDecay.process (shDecay);
             float sShAmt   = smoothShimmerAmt.process (shAmt);
             float sShMix   = smoothShimmerMix.process (shMix);
+            float sPitch   = smoothPitchShift.process (pitchShift);
 
             // 1. Filter (MoogLadder LP24)
             if (filtOn)
             {
                 filterL.setFreq (static_cast<double> (sfCut));
-                filterL.setRes (static_cast<double> (sfRes * 1.8));
+                filterL.setRes (static_cast<double> (sfRes * 1.3));  // 1.8 causes self-oscillation artifacts
                 filterR.setFreq (static_cast<double> (sfCut));
-                filterR.setRes (static_cast<double> (sfRes * 1.8));
+                filterR.setRes (static_cast<double> (sfRes * 1.3));
                 L[i] = filterL.process (L[i]);
                 if (R) R[i] = filterR.process (R[i]);
             }
@@ -930,6 +1017,13 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 if (R) R[i] = ditherR.process (R[i], dtBits);
             }
         }
+    }
+
+    // 10. Pitch Shifter (Block-based, via SignalSmith)
+    if (std::abs(smoothPitchShift.getCurrentValue()) > 0.01f)
+    {
+        pitchShifter.setPitchSemitones (smoothPitchShift.getCurrentValue());
+        pitchShifter.processInPlace (buffer);
     }
 
     // Ghostmoon safety chain: NaN guard, DC blocker, soft limiter, hard clip

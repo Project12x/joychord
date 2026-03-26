@@ -43,11 +43,14 @@ public:
             box->setSelectedId (currentTarget + 1, juce::dontSendNotification);
 
             box->onChange = [this, axis, a] {
-                int sel = combos[a]->getSelectedId() - 1;
-                auto target = static_cast<ModTarget>(sel);
-                modRouter.setAxisTarget (axis, target);
-                if (onAxisChanged)
-                    onAxisChanged (axis, target);
+                if (a >= 0 && a < static_cast<int>(combos.size()) && combos[a] != nullptr)
+                {
+                    int sel = combos[a]->getSelectedId() - 1;
+                    auto target = static_cast<ModTarget>(sel);
+                    modRouter.setAxisTarget (axis, target);
+                    if (onAxisChanged)
+                        onAxisChanged (axis, target);
+                }
             };
             box->setTooltip ("Modulation target for " + juce::String (controlAxisName (axis)));
             addAndMakeVisible (*box);

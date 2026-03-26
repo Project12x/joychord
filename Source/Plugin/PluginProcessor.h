@@ -13,6 +13,7 @@
 #include <ghostmoon/Phaser.h>
 #include <ghostmoon/PingPongDelay.h>
 #include <ghostmoon/ShimmerReverb.h>
+#include <ghostmoon/PitchShifter.h>
 #include <ghostmoon/Dither.h>
 #include <ghostmoon/SVFilter.h>
 #include "Engine/ChordEngine.h"
@@ -131,6 +132,7 @@ private:
     gm::Phaser         phaser;
     gm::PingPongDelay  pingPongDelay;
     gm::ShimmerReverb  shimmerReverb;
+    gm::PitchShifter   pitchShifter;
     gm::Dither         ditherL, ditherR;
 
     // Parameter smoothers for RT-safe control
@@ -155,6 +157,10 @@ private:
     gm::ParamSmoother<float> smoothShimmerMix{0.02f};
     gm::ParamSmoother<float> smoothWahPos{0.02f};
     gm::ParamSmoother<float> smoothWahRes{0.02f};
+    gm::ParamSmoother<float> smoothPitchShift{0.02f};
+
+    // RT-safe pitch shift value (written by UI/timer thread, read by audio thread)
+    std::atomic<float> pitchShiftTarget{0.0f};
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;

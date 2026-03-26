@@ -10,6 +10,16 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 
 ### Added
+- **Axis floor modulation**: when a controller axis is assigned to an effect param, the knob sets the floor and the axis sweeps from floor to maximum
+- **Auto-enable effects on axis assignment**: assigning an axis to Filter/Wah/Reverb/Chorus/Delay automatically enables that effect section
+
+### Fixed
+- **Lock-free CC cleanup queue** (`ModulationRouter`): switching axis targets now queues a cleanup CC (e.g. CC7=100 when leaving Volume) dispatched on the next audio block via `popPendingCC`
+- **`paramCallback` denormalization**: was storing normalized [0,1] into raw APVTS atomics; now uses `AudioParameterFloat::range.convertFrom0to1` for correct skewed Hz/dB conversion
+- **ParamSmoother startup**: all smoothers now `snapTo()` current APVTS value on `prepareToPlay`, eliminating the 0→target startup ramp that made knobs appear broken
+- **`filterL/filterR.prepare()`**: filter DSP now correctly initialized with sampleRate on each `prepareToPlay`
+- **Default axis assignments**: cleared `FilterCutoff` from `RStickX` and `ReverbMix` from `RStickY` defaults — these were silently overwriting knob values every audio block
+- **Filter resonance artifacts**: capped resonance multiplier at 1.3× (was 1.8×) to prevent MoogLadder self-oscillation at high knob values
 
 - **DSP Expansion: 6 new ghostmoon effects** (Compressor, Flanger, Phaser, PingPongDelay, ShimmerReverb, Dither)
   - 30 new APVTS parameters with enable toggles

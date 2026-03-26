@@ -200,6 +200,25 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     addAndMakeVisible (*axisDrawer);
     axisDrawer->setVisible (false);
 
+    // Auto-enable the corresponding effect when an axis is assigned to it.
+    // This prevents the "assigned but silent" experience when the effect section is toggled off.
+    axisDrawer->onAxisChanged = [this](ControlAxis /*axis*/, ModTarget target) {
+        auto enableParam = [&](const char* id) {
+            if (auto* p = processor.apvts.getParameter (id))
+                p->setValueNotifyingHost (1.0f);   // UI thread -- safe
+        };
+        switch (target)
+        {
+            case ModTarget::FilterCutoff:
+            case ModTarget::FilterResonance:  enableParam ("filterEnabled");  break;
+            case ModTarget::WahPosition:      enableParam ("wahEnabled");     break;
+            case ModTarget::ReverbMix:        enableParam ("reverbEnabled");  break;
+            case ModTarget::ChorusDepth:      enableParam ("chorusEnabled");  break;
+            case ModTarget::DelayMix:         enableParam ("delayEnabled");   break;
+            default: break;
+        }
+    };
+
     // Preset system (gm::PresetManager - JSON, A/B, dirty detection)
     presetMgr = std::make_unique<gm::PresetManager> (processor.apvts, "Wombletook", "Joychord");
 
@@ -564,7 +583,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     // ── CHORD TEXT with drop shadow ──
     {
-        auto chordArea = juce::Rectangle<int> (canvasX, 20, canvasW, 150);
+        auto chordArea = juce::Rectangle<int> (canvasX, 50, canvasW, 80);
         auto chordText = !processor.lastChordName.empty()
                              ? juce::String(processor.lastChordName.c_str())
                              : juce::String ("---");
@@ -984,7 +1003,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
         juce::String labelStr = getRoleLabel (processor.getRoleMap().getRole (btnId));
         if (labelStr.isNotEmpty()) {
-            int textW = labelStr.length() * 6 + 6;  // approximate pill width
+            int textW = labelStr.length() * 6 + 10;  // approximate pill width
             int pillX = (just == juce::Justification::centredRight) ? x + 22 - textW : x;
             auto pill = juce::Rectangle<float> ((float)pillX, (float)y, (float)textW, 13.0f);
             g.setColour (accent.withAlpha (0.08f));
@@ -992,7 +1011,7 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.setColour (accent.withAlpha (0.2f));
             g.drawRoundedRectangle (pill, 3.0f, 0.5f);
             g.setColour (juce::Colour (0xffc0c0d0));
-            g.drawText (labelStr, x, y, 22, 13, just);
+            g.drawText (labelStr, pill.toNearestInt(), juce::Justification::centred);
         }
     };
 
@@ -1212,19 +1231,19 @@ void JoychordEditor::toggleDrawer()
     if (synthDrawerOpen)
     {
         synthDrawerOpen = false;
-        synthDrawer->setVisible (false);
+        if (synthDrawer) synthDrawer->setVisible (false);
         synthDrawerBtn.setup ("SYN");
     }
     if (axisDrawerOpen)
     {
         axisDrawerOpen = false;
-        axisDrawer->setVisible (false);
+        if (axisDrawer) axisDrawer->setVisible (false);
         axisDrawerBtn.setup ("CTRL");
     }
 
     drawerOpen = !drawerOpen;
     int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
-    effectsDrawer->setVisible (drawerOpen);
+    if (effectsDrawer) effectsDrawer->setVisible (drawerOpen);
     animateToWidth (targetW);
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
 }
@@ -1235,19 +1254,19 @@ void JoychordEditor::toggleSynthDrawer()
     if (drawerOpen)
     {
         drawerOpen = false;
-        effectsDrawer->setVisible (false);
+        if (effectsDrawer) effectsDrawer->setVisible (false);
         fxDrawerBtn.setup ("FX");
     }
     if (axisDrawerOpen)
     {
         axisDrawerOpen = false;
-        axisDrawer->setVisible (false);
+        if (axisDrawer) axisDrawer->setVisible (false);
         axisDrawerBtn.setup ("CTRL");
     }
 
     synthDrawerOpen = !synthDrawerOpen;
     int targetW = synthDrawerOpen ? mainWidth + drawerWidth : mainWidth;
-    synthDrawer->setVisible (synthDrawerOpen);
+    if (synthDrawer) synthDrawer->setVisible (synthDrawerOpen);
     animateToWidth (targetW);
     synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
 }
@@ -1258,19 +1277,19 @@ void JoychordEditor::toggleAxisDrawer()
     if (drawerOpen)
     {
         drawerOpen = false;
-        effectsDrawer->setVisible (false);
+        if (effectsDrawer) effectsDrawer->setVisible (false);
         fxDrawerBtn.setup ("FX");
     }
     if (synthDrawerOpen)
     {
         synthDrawerOpen = false;
-        synthDrawer->setVisible (false);
+        if (synthDrawer) synthDrawer->setVisible (false);
         synthDrawerBtn.setup ("SYN");
     }
 
     axisDrawerOpen = !axisDrawerOpen;
     int targetW = axisDrawerOpen ? mainWidth + drawerWidth : mainWidth;
-    axisDrawer->setVisible (axisDrawerOpen);
+    if (axisDrawer) axisDrawer->setVisible (axisDrawerOpen);
     animateToWidth (targetW);
     axisDrawerBtn.setup (axisDrawerOpen ? "<<" : "CTRL");
 }

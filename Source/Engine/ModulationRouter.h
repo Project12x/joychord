@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <string>
+#include <atomic>
 
 // ── Modulation target destinations ──────────────────────────────────────────
 enum class ModTarget
@@ -16,6 +17,7 @@ enum class ModTarget
     ModWheel,       // CC1
     Expression,     // CC11
     WahPosition,    // Wah pedal sweep
+    PitchShiftAudio,// Audio Pitch Shifter (SignalSmith)
     Count
 };
 
@@ -34,6 +36,7 @@ inline const char* modTargetName (ModTarget t)
         case ModTarget::ModWheel:        return "Mod Wheel (CC1)";
         case ModTarget::Expression:      return "Expression (CC11)";
         case ModTarget::WahPosition:     return "Wah Position";
+        case ModTarget::PitchShiftAudio: return "Audio Pitch Shift";
         default:                         return "Unknown";
     }
 }
@@ -67,7 +70,7 @@ inline const char* controlAxisName (ControlAxis a)
 // ── Callbacks ───────────────────────────────────────────────────────────────
 using MidiCCCallback    = std::function<void(int cc, int value)>;
 using PitchBendCallback = std::function<void(int bendValue)>; // 0-16383, 8192=center
-using ParamModCallback  = std::function<void(const std::string& paramId, float value)>;
+using ParamModCallback  = std::function<void(const char* paramId, float value)>;
 
 // ── Router ──────────────────────────────────────────────────────────────────
 class ModulationRouter
@@ -80,6 +83,10 @@ public:
     // Axis target assignment
     void      setAxisTarget (ControlAxis axis, ModTarget target);
     ModTarget getAxisTarget (ControlAxis axis) const;
+
+    // Pop one pending cleanup CC from the queue. Returns true if one was available.
+    // Call in a loop at the top of processBlock to drain all queued cleanup CCs.
+    bool popPendingCC (int& cc, int& value);
 
     // Call with normalized axis values [-1, 1] or [0, 1] for triggers
     void processLeftStick  (float x, float y);
@@ -118,4 +125,30 @@ private:
 
     // Map ModTarget to APVTS parameter ID (for direct param modulation)
     static const char* targetToParamId (ModTarget t);
+
+    // Lock-free queue for cleanup CC messages queued by setAxisTarget (UI thread)
+    // and flushed into the midi buffer by processBlock (audio thread)
+    struct PendingCC { int cc; int value; };
+
+    static constexpr int kPendingQueueSize = 16;
+    // Simple bounded lock-free SPSC queue using atomics
+    PendingCC  pendingQueue[kPendingQueueSize];
+    std::atomic<int> pendingHead{0};
+    std::atomic<int> pendingTail{0};
+
+    struct MidiQueue {
+        PendingCC buf[16];
+        std::atomic<int> head{0}, tail{0};
+        bool push (PendingCC v) {
+            int h = head.load (std::memory_order_relaxed);
+            int next = (h + 1) & 15;
+            if (next == tail.load (std::memory_order_acquire)) return false;
+            buf[h] = v; head.store (next, std::memory_order_release); return true;
+        }
+        bool pop (PendingCC& v) {
+            int t = tail.load (std::memory_order_relaxed);
+            if (t == head.load (std::memory_order_acquire)) return false;
+            v = buf[t]; tail.store ((t + 1) & 15, std::memory_order_release); return true;
+        }
+    } pendingCCs;
 };

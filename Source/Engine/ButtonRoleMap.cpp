@@ -54,9 +54,6 @@ void ButtonRoleMap::loadDiatonicRock()
     // Modifiers
     setRole (ButtonId::LB,     RoleExtension   { 0 });    // seventh
     setRole (ButtonId::RB,     RoleExtension   { 1 });    // sus4
-    // Strum triggers
-    setRole (ButtonId::RT,     RoleStrumDown   {});
-    setRole (ButtonId::LT,     RoleStrumUp     {});
     // Octave shift
     setRole (ButtonId::L3,     RoleOctaveShift { -1 });
     setRole (ButtonId::R3,     RoleOctaveShift { +1 });
@@ -78,8 +75,6 @@ void ButtonRoleMap::loadPopBallad()
     // Modifiers: sus extensions for pop feel
     setRole (ButtonId::LB,     RoleExtension   { 2 });    // sus2
     setRole (ButtonId::RB,     RoleExtension   { 1 });    // sus4
-    setRole (ButtonId::RT,     RoleStrumDown   {});
-    setRole (ButtonId::LT,     RoleStrumUp     {});
     setRole (ButtonId::L3,     RoleOctaveShift { -1 });
     setRole (ButtonId::R3,     RoleOctaveShift { +1 });
 }
@@ -100,8 +95,6 @@ void ButtonRoleMap::loadJazzVoicings()
     // Modifiers: 7th is the default, LB adds 9th, RB adds sus4
     setRole (ButtonId::LB,     RoleExtension   { 0 });    // seventh (add on top)
     setRole (ButtonId::RB,     RoleExtension   { 3 });    // add9
-    setRole (ButtonId::RT,     RoleStrumDown   {});
-    setRole (ButtonId::LT,     RoleStrumUp     {});
     setRole (ButtonId::L3,     RoleOctaveShift { -1 });
     setRole (ButtonId::R3,     RoleOctaveShift { +1 });
 }
