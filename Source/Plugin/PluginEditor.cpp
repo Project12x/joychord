@@ -188,6 +188,18 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     addAndMakeVisible (*synthDrawer);
     synthDrawer->setVisible (false);
 
+    // Axis assignment drawer button
+    axisDrawerBtn.setup ("CTRL");
+    axisDrawerBtn.setTooltip ("Controller axis assignments");
+    axisDrawerBtn.onClick = [this] { toggleAxisDrawer(); };
+    axisDrawerBtn.getButton().onClick = [this] { toggleAxisDrawer(); };
+    addAndMakeVisible (axisDrawerBtn);
+
+    // Axis assignment drawer (created but initially hidden)
+    axisDrawer = std::make_unique<AxisDrawer> (processor.getModulationRouter());
+    addAndMakeVisible (*axisDrawer);
+    axisDrawer->setVisible (false);
+
     // Preset system (gm::PresetManager - JSON, A/B, dirty detection)
     presetMgr = std::make_unique<gm::PresetManager> (processor.apvts, "Wombletook", "Joychord");
 
@@ -1145,6 +1157,8 @@ void JoychordEditor::resized()
     fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), knobY + 20, 40, 40);
     // SYN drawer button (below FX)
     synthDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap) + 44, knobY + 20, 40, 40);
+    // CTRL drawer button
+    axisDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap) + 88, knobY + 20, 40, 40);
 
     // LED Meters (horizontal, stacked vertically under knob row)
     int meterH = 8;
@@ -1173,6 +1187,10 @@ void JoychordEditor::resized()
     // Synth drawer (same position as effects drawer -- only one visible at a time)
     if (synthDrawer)
         synthDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
+
+    // Axis drawer (same position)
+    if (axisDrawer)
+        axisDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
 }
 
 void JoychordEditor::toggleDrawer()
@@ -1183,6 +1201,12 @@ void JoychordEditor::toggleDrawer()
         synthDrawerOpen = false;
         synthDrawer->setVisible (false);
         synthDrawerBtn.setup ("SYN");
+    }
+    if (axisDrawerOpen)
+    {
+        axisDrawerOpen = false;
+        axisDrawer->setVisible (false);
+        axisDrawerBtn.setup ("CTRL");
     }
 
     drawerOpen = !drawerOpen;
@@ -1201,12 +1225,41 @@ void JoychordEditor::toggleSynthDrawer()
         effectsDrawer->setVisible (false);
         fxDrawerBtn.setup ("FX");
     }
+    if (axisDrawerOpen)
+    {
+        axisDrawerOpen = false;
+        axisDrawer->setVisible (false);
+        axisDrawerBtn.setup ("CTRL");
+    }
 
     synthDrawerOpen = !synthDrawerOpen;
     int targetW = synthDrawerOpen ? mainWidth + drawerWidth : mainWidth;
     synthDrawer->setVisible (synthDrawerOpen);
     setSize (targetW, getHeight());
     synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
+}
+
+void JoychordEditor::toggleAxisDrawer()
+{
+    // Close other drawers first
+    if (drawerOpen)
+    {
+        drawerOpen = false;
+        effectsDrawer->setVisible (false);
+        fxDrawerBtn.setup ("FX");
+    }
+    if (synthDrawerOpen)
+    {
+        synthDrawerOpen = false;
+        synthDrawer->setVisible (false);
+        synthDrawerBtn.setup ("SYN");
+    }
+
+    axisDrawerOpen = !axisDrawerOpen;
+    int targetW = axisDrawerOpen ? mainWidth + drawerWidth : mainWidth;
+    axisDrawer->setVisible (axisDrawerOpen);
+    setSize (targetW, getHeight());
+    axisDrawerBtn.setup (axisDrawerOpen ? "<<" : "CTRL");
 }
 
 void JoychordEditor::refreshPresetList()

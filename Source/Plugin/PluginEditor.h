@@ -14,6 +14,7 @@
 #include "ComboSelector.h"
 #include "EffectsDrawer.h"
 #include "SynthDrawer.h"
+#include "AxisDrawer.h"
 #include "PresetManager.h"
 #include "ToastOverlay.h"
 #include "ButtonStyles.h"
@@ -49,6 +50,7 @@ private:
     void timerCallback() override;
     void toggleDrawer();
     void toggleSynthDrawer();
+    void toggleAxisDrawer();
 
     JoychordProcessor& processor;
 
@@ -107,6 +109,11 @@ private:
     gm::GmTextButton synthDrawerBtn;
     std::unique_ptr<SynthDrawer> synthDrawer;
     bool synthDrawerOpen = false;
+
+    // Axis assignment drawer
+    gm::GmTextButton axisDrawerBtn;
+    std::unique_ptr<AxisDrawer> axisDrawer;
+    bool axisDrawerOpen = false;
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;
