@@ -7,6 +7,7 @@ A JUCE 8 standalone application and VST3 plugin that turns an Xbox-style gamepad
 - **8 chord slots** mapped to face buttons and D-pad, key-relative (diatonic + borrowed chords)
 - **Assignable button roles** — every button is user-configurable (chord, inversion, extension, strum, mute, octave shift...)
 - **Legato slide** — overlap chord buttons for smooth common-tone voice leading
+- **Multiple sound sources** — built-in polyphonic synth (PolyBLEP oscillator, 9 waveshapes, unison) plus **SFZ/SF2 sample playback** via TinySoundFont/sfizz; includes a built-in piano for instant use
 - **Analog modulation** — assignable controller axes with floor/depth control:
   - **Left Stick** — pitch bend (X), configurable (Y)
   - **LT** — mod wheel (default); reassignable to any modulation target
