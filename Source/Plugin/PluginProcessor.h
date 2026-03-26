@@ -17,7 +17,7 @@
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
-#include "Synth/SimpleVoice.h"
+#include "Synth/GhostmoonVoice.h"
 #include "Engine/ModulationRouter.h"
 #include "Input/XInputGamepad.h"
 #include <set>

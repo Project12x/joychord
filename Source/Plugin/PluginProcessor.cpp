@@ -1,6 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "Synth/SimpleVoice.h"
+#include "Synth/GhostmoonVoice.h"
 #include <spdlog/spdlog.h>
 #include <tsf.h>
 
@@ -9,10 +9,10 @@ JoychordProcessor::JoychordProcessor()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "JOYCHORD", createParameterLayout())
 {
-    // Add a couple of voices to the analog synth
-    analogSynth.addSound (new SimpleSound());
-    for (int i = 0; i < 4; ++i)
-        analogSynth.addVoice (new SimpleVoice());
+    // Add ghostmoon synth voices
+    analogSynth.addSound (new GhostmoonSound());
+    for (int i = 0; i < 8; ++i)
+        analogSynth.addVoice (new GhostmoonVoice());
 
 #if JOYCHORD_HAS_SFIZZ
     sfzSynth = std::make_unique<sfz::Sfizz>();
@@ -190,6 +190,45 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     layout.add (std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID ("ditherEnabled", 1), "Dither Enabled", false));
 
+    // Synth parameters
+    layout.add (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID ("synthWaveshape", 1), "Waveshape",
+        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "Pulse",
+                            "SineOct", "FifthStack", "Pad", "Bell" }, 2)); // Default: Saw
+    layout.add (std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID ("unisonCount", 1), "Unison Voices", 1, 16, 1));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("unisonDetune", 1), "Unison Detune",
+        juce::NormalisableRange<float> (0.0f, 50.0f, 0.1f), 15.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("subOscEnabled", 1), "Sub Osc Enabled", false));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("subOscLevel", 1), "Sub Osc Level",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("envAttack", 1), "Env Attack",
+        juce::NormalisableRange<float> (0.001f, 2.0f, 0.001f, 0.4f), 0.01f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("envHold", 1), "Env Hold",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("envDecay", 1), "Env Decay",
+        juce::NormalisableRange<float> (0.001f, 2.0f, 0.001f, 0.4f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("envSustain", 1), "Env Sustain",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.8f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("envRelease", 1), "Env Release",
+        juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.4f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("portaEnabled", 1), "Portamento Enabled", false));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("portaTime", 1), "Portamento Time",
+        juce::NormalisableRange<float> (0.01f, 0.5f, 0.001f), 0.08f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("synthDrift", 1), "Drift Amount",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.1f));
+
     return layout;
 }
 
@@ -198,7 +237,7 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     analogSynth.setCurrentPlaybackSampleRate (sampleRate);
     for (int i = 0; i < analogSynth.getNumVoices(); ++i)
     {
-        if (auto voice = dynamic_cast<SimpleVoice*> (analogSynth.getVoice (i)))
+        if (auto voice = dynamic_cast<GhostmoonVoice*> (analogSynth.getVoice (i)))
             voice->prepareToPlay (sampleRate);
     }
 
@@ -551,6 +590,37 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     if (activeSynthMode == 1)
     {
+        // Dispatch synth params to all voices before rendering
+        int waveshape   = static_cast<int> (*apvts.getRawParameterValue ("synthWaveshape"));
+        int uniCount    = static_cast<int> (*apvts.getRawParameterValue ("unisonCount"));
+        float uniDetune = apvts.getRawParameterValue ("unisonDetune")->load();
+        bool subOn      = apvts.getRawParameterValue ("subOscEnabled")->load() > 0.5f;
+        float subLvl    = apvts.getRawParameterValue ("subOscLevel")->load();
+        float envA      = apvts.getRawParameterValue ("envAttack")->load();
+        float envH      = apvts.getRawParameterValue ("envHold")->load();
+        float envD      = apvts.getRawParameterValue ("envDecay")->load();
+        float envS      = apvts.getRawParameterValue ("envSustain")->load();
+        float envR      = apvts.getRawParameterValue ("envRelease")->load();
+        bool portaOn    = apvts.getRawParameterValue ("portaEnabled")->load() > 0.5f;
+        float portaTime = apvts.getRawParameterValue ("portaTime")->load();
+        float driftAmt  = apvts.getRawParameterValue ("synthDrift")->load();
+
+        for (int v = 0; v < analogSynth.getNumVoices(); ++v)
+        {
+            if (auto* gv = dynamic_cast<GhostmoonVoice*> (analogSynth.getVoice (v)))
+            {
+                gv->setWaveshape (waveshape);
+                gv->setUnisonCount (uniCount);
+                gv->setUnisonDetune (static_cast<double> (uniDetune));
+                gv->setSubLevel (subLvl);
+                gv->setSubOscEnabled (subOn);
+                gv->setEnvelope (envA, envH, envD, envS, envR);
+                gv->setPortaTime (portaTime);
+                gv->setPortamentoEnabled (portaOn);
+                gv->setDriftAmount (driftAmt);
+            }
+        }
+
         analogSynth.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
     }
     else if (activeSynthMode == 2 || activeSynthMode == 3)
