@@ -27,16 +27,19 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     // Key selector (gm::ComboSelector)
     keySel.setup (processor.apvts, "key", "Key",
                   juce::StringArray {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"});
+    keySel.setTooltip ("Root key for chord generation");
     addAndMakeVisible (keySel);
 
     // Scale selector
     scaleSel.setup (processor.apvts, "scale", "Scale",
                     juce::StringArray {"Major", "Minor", "Dorian", "Mixolydian", "Phrygian", "Lydian", "Whole Tone"});
+    scaleSel.setTooltip ("Musical scale/mode");
     addAndMakeVisible (scaleSel);
 
     // Voicing selector
     voicingSel.setup (processor.apvts, "voicing", "Voicing",
                       juce::StringArray {"Close", "Drop-2"});
+    voicingSel.setTooltip ("Chord voicing style");
     addAndMakeVisible (voicingSel);
 
     // Octave dropdown
@@ -52,6 +55,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
         if (auto* param = processor.apvts.getParameter("octave"))
             param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float>(octaveBox.getSelectedId())));
     };
+    octaveBox.setTooltip ("Base octave for chord output");
     addAndMakeVisible (octaveBox);
 
     // Preset dropdown
@@ -70,6 +74,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
             processor.loadPreset (presets[idx].id);
     };
     presetBox.onChange(); // Force initial sync
+    presetBox.setTooltip ("Controller button mapping preset");
     addAndMakeVisible (presetBox);
 
     // Gamepad controller index
@@ -84,11 +89,13 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     gamepadIndexBox.onChange = [this]() {
         processor.setControllerIndex (gamepadIndexBox.getSelectedId() - 1);
     };
+    gamepadIndexBox.setTooltip ("Select which gamepad to use");
     addAndMakeVisible (gamepadIndexBox);
 
     // Synth Mode selector
     synthModeSel.setup (processor.apvts, "synthMode", "Synth",
                         juce::StringArray {"MIDI", "SYNTH", "PIANO", "SFZ"});
+    synthModeSel.setTooltip ("Sound engine mode");
     addAndMakeVisible (synthModeSel);
 
     // Strum Speed slider (ghostmoon HSlider)
@@ -98,6 +105,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     // Load SFZ Button (ghostmoon styled)
     loadSfzBtn.setup ("Load SFZ...");
+    loadSfzBtn.setTooltip ("Load a custom SFZ instrument file");
     addAndMakeVisible (loadSfzBtn);
     loadSfzBtn.getButton().onClick = [this]() {
         static std::unique_ptr<juce::FileChooser> chooser;
@@ -160,12 +168,14 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     fxDrawerBtn.setup ("FX");
     fxDrawerBtn.onClick = [this] { toggleDrawer(); };
     fxDrawerBtn.getButton().onClick = [this] { toggleDrawer(); };
+    fxDrawerBtn.setTooltip ("Toggle effects panel");
     addAndMakeVisible (fxDrawerBtn);
 
     // Synth drawer button
     synthDrawerBtn.setup ("SYN");
     synthDrawerBtn.onClick = [this] { toggleSynthDrawer(); };
     synthDrawerBtn.getButton().onClick = [this] { toggleSynthDrawer(); };
+    synthDrawerBtn.setTooltip ("Toggle synth parameters panel");
     addAndMakeVisible (synthDrawerBtn);
 
     // Effects drawer (created but initially hidden)
@@ -246,13 +256,40 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     dpiScaleBox.addItem ("125%", 2);
     dpiScaleBox.addItem ("150%", 3);
     dpiScaleBox.addItem ("200%", 4);
-    dpiScaleBox.setSelectedId (2, juce::dontSendNotification);
-    applyDpiScale (1.25f);  // Apply default 125% on startup
+    dpiScaleBox.setTooltip ("UI display scale");
+
+    // Restore persisted DPI scale
+    {
+        juce::PropertiesFile::Options opts;
+        opts.applicationName = "Joychord";
+        opts.folderName = "Wombletook";
+        opts.filenameSuffix = ".settings";
+        opts.osxLibrarySubFolder = "Application Support";
+        juce::PropertiesFile props (opts);
+        int savedId = props.getIntValue ("dpiScaleId", 2);  // default 125%
+        dpiScaleBox.setSelectedId (savedId, juce::dontSendNotification);
+        float scales[] = { 1.0f, 1.25f, 1.5f, 2.0f };
+        int idx = savedId - 1;
+        if (idx >= 0 && idx < 4)
+            applyDpiScale (scales[idx]);
+    }
+
     dpiScaleBox.onChange = [this] {
         float scales[] = { 1.0f, 1.25f, 1.5f, 2.0f };
         int idx = dpiScaleBox.getSelectedId() - 1;
         if (idx >= 0 && idx < 4)
+        {
             applyDpiScale (scales[idx]);
+            // Persist selection
+            juce::PropertiesFile::Options opts;
+            opts.applicationName = "Joychord";
+            opts.folderName = "Wombletook";
+            opts.filenameSuffix = ".settings";
+            opts.osxLibrarySubFolder = "Application Support";
+            juce::PropertiesFile props (opts);
+            props.setValue ("dpiScaleId", dpiScaleBox.getSelectedId());
+            props.saveIfNeeded();
+        }
     };
     addAndMakeVisible (dpiScaleBox);
 
@@ -476,12 +513,12 @@ void JoychordEditor::paint (juce::Graphics& g)
             BinaryData::testlogo_png, BinaryData::testlogo_pngSize);
         if (logoImg.isValid())
         {
-            int logoH = 28;
+            int logoH = 60;
             float scale = (float)logoH / (float)logoImg.getHeight();
             int logoW = (int)(logoImg.getWidth() * scale);
             int logoX = canvasX + (canvasW - logoW) / 2;
-            int logoY = 6;
-            g.setOpacity (0.85f);
+            int logoY = 2;
+            g.setOpacity (0.45f);
             g.drawImage (logoImg, logoX, logoY, logoW, logoH,
                          0, 0, logoImg.getWidth(), logoImg.getHeight());
             g.setOpacity (1.0f);
