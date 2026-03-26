@@ -162,10 +162,21 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     fxDrawerBtn.getButton().onClick = [this] { toggleDrawer(); };
     addAndMakeVisible (fxDrawerBtn);
 
+    // Synth drawer button
+    synthDrawerBtn.setup ("SYN");
+    synthDrawerBtn.onClick = [this] { toggleSynthDrawer(); };
+    synthDrawerBtn.getButton().onClick = [this] { toggleSynthDrawer(); };
+    addAndMakeVisible (synthDrawerBtn);
+
     // Effects drawer (created but initially hidden)
     effectsDrawer = std::make_unique<EffectsDrawer> (processor.apvts);
     addAndMakeVisible (*effectsDrawer);
     effectsDrawer->setVisible (false);
+
+    // Synth drawer (created but initially hidden)
+    synthDrawer = std::make_unique<SynthDrawer> (processor.apvts);
+    addAndMakeVisible (*synthDrawer);
+    synthDrawer->setVisible (false);
 
     // Preset system (gm::PresetManager - JSON, A/B, dirty detection)
     presetMgr = std::make_unique<gm::PresetManager> (processor.apvts, "Wombletook", "Joychord");
@@ -1003,6 +1014,8 @@ void JoychordEditor::resized()
 
     // FX drawer button
     fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), knobY + 20, 40, 40);
+    // SYN drawer button (below FX)
+    synthDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap) + 44, knobY + 20, 40, 40);
 
     // LED Meters (horizontal, stacked vertically under knob row)
     int meterH = 8;
@@ -1020,15 +1033,44 @@ void JoychordEditor::resized()
     // Effects drawer
     if (effectsDrawer)
         effectsDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
+
+    // Synth drawer (same position as effects drawer -- only one visible at a time)
+    if (synthDrawer)
+        synthDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
 }
 
 void JoychordEditor::toggleDrawer()
 {
+    // If synth drawer is open, close it first
+    if (synthDrawerOpen)
+    {
+        synthDrawerOpen = false;
+        synthDrawer->setVisible (false);
+        synthDrawerBtn.setup ("SYN");
+    }
+
     drawerOpen = !drawerOpen;
     int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
     effectsDrawer->setVisible (drawerOpen);
     setSize (targetW, getHeight());
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
+}
+
+void JoychordEditor::toggleSynthDrawer()
+{
+    // If effects drawer is open, close it first
+    if (drawerOpen)
+    {
+        drawerOpen = false;
+        effectsDrawer->setVisible (false);
+        fxDrawerBtn.setup ("FX");
+    }
+
+    synthDrawerOpen = !synthDrawerOpen;
+    int targetW = synthDrawerOpen ? mainWidth + drawerWidth : mainWidth;
+    synthDrawer->setVisible (synthDrawerOpen);
+    setSize (targetW, getHeight());
+    synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
 }
 
 void JoychordEditor::refreshPresetList()

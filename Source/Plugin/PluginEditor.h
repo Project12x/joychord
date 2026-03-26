@@ -13,6 +13,7 @@
 #include "ThemeManager.h"
 #include "ComboSelector.h"
 #include "EffectsDrawer.h"
+#include "SynthDrawer.h"
 #include "PresetManager.h"
 #include "ToastOverlay.h"
 #include "ButtonStyles.h"
@@ -46,6 +47,7 @@ public:
 private:
     void timerCallback() override;
     void toggleDrawer();
+    void toggleSynthDrawer();
 
     JoychordProcessor& processor;
 
@@ -99,6 +101,11 @@ private:
     static constexpr int mainWidth = 585;
     static constexpr int sidebarWidth = 200;
     static constexpr int drawerWidth = 180;
+
+    // Synth drawer
+    gm::GmTextButton synthDrawerBtn;
+    std::unique_ptr<SynthDrawer> synthDrawer;
+    bool synthDrawerOpen = false;
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;
