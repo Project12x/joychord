@@ -49,6 +49,9 @@ public:
     void resized() override
     {
         viewport.setBounds (getLocalBounds());
+        // Trigger content layout first, then update viewport with actual height
+        content->setSize (getWidth() - 8, content->getTotalHeight());
+        content->resized();
         content->setSize (getWidth() - 8, content->getTotalHeight());
     }
 
@@ -245,7 +248,7 @@ private:
         }
 
     private:
-        int totalHeight = 800;
+        int totalHeight = 1400;
         std::vector<int> dividerYs;
 
         // Toggles

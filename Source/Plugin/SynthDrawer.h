@@ -49,6 +49,8 @@ public:
     {
         viewport.setBounds (getLocalBounds());
         content->setSize (getWidth() - 8, content->getTotalHeight());
+        content->resized();
+        content->setSize (getWidth() - 8, content->getTotalHeight());
     }
 
 private:
@@ -216,7 +218,7 @@ private:
         }
 
     private:
-        int totalHeight = 600;
+        int totalHeight = 900;
         std::vector<int> dividerYs;
 
         // Toggles
