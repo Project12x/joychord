@@ -20,6 +20,8 @@
 #include "ButtonStyles.h"
 #include <melatonin_blur/melatonin_blur.h>
 
+#include "CollapsibleComboBox.h"
+
 // Joychord theme: DarkMetallic + ghostmoon Neon combo boxes
 // Popup rendering handled by DarkMetallicTheme (fillAll + exact alignment)
 struct JoychordTheme : public gm::DarkMetallicTheme {
@@ -59,7 +61,7 @@ private:
     gm::ComboSelector keySel, scaleSel, voicingSel, synthModeSel;
 
     // Non-APVTS combos (manual onChange)
-    juce::ComboBox octaveBox, presetBox, gamepadIndexBox;
+    gm::combos::CollapsibleComboBox octaveBox, presetBox, gamepadIndexBox;
 
     std::unique_ptr<gm::HSlider> strumSlider;
 
@@ -127,7 +129,7 @@ private:
 
     // Preset system (gm::PresetManager — JSON, A/B, dirty detection)
     std::unique_ptr<gm::PresetManager> presetMgr;
-    juce::ComboBox paramPresetBox;
+    gm::combos::CollapsibleComboBox paramPresetBox;
     gm::GmTextButton presetSaveBtn;
     gm::GmTextButton presetDeleteBtn;
     gm::GmTextButton presetPrevBtn;
@@ -137,7 +139,7 @@ private:
     void savePresetWithDialog();
     void deleteCurrentPreset();
     // DPI scale
-    juce::ComboBox dpiScaleBox;
+    gm::combos::CollapsibleComboBox dpiScaleBox;
     juce::Label dpiLabel;
     void applyDpiScale (float scale);
 

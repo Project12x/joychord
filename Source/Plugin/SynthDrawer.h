@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "CollapsibleComboBox.h"
 #include "Knob.h"
 #include "KnobStyles.h"
 #include "ButtonStyles.h"
@@ -229,7 +230,7 @@ private:
         juce::Label oscLabel, unisonLabel, subLabel, envLabel, portaLabel, driftLabel;
 
         // Combo
-        juce::ComboBox waveshapeCombo;
+        gm::combos::CollapsibleComboBox waveshapeCombo;
         std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveshapeAttach;
 
         // Knobs

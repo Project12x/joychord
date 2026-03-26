@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "CollapsibleComboBox.h"
 #include "Engine/ModulationRouter.h"
 #include "Typography.h"
 #include "BinaryData.h"
@@ -33,7 +34,7 @@ public:
             labels.push_back (std::move (lbl));
 
             // ComboBox
-            auto box = std::make_unique<juce::ComboBox>();
+            auto box = std::make_unique<gm::combos::CollapsibleComboBox>();
             for (int t = 0; t < targetNames.size(); ++t)
                 box->addItem (targetNames[t], t + 1);  // 1-indexed
 
@@ -131,7 +132,7 @@ private:
 
     juce::Label titleLabel;
     std::vector<std::unique_ptr<juce::Label>> labels;
-    std::vector<std::unique_ptr<juce::ComboBox>> combos;
+    std::vector<std::unique_ptr<gm::combos::CollapsibleComboBox>> combos;
     juce::StringArray targetNames;
 
     mutable juce::Image drawerTile;
