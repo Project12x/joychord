@@ -571,7 +571,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // Scale path from SVG space (640x640) to HUD space
         auto svgBounds = bodyPath.getBounds();
-        float targetW = 230.0f;
+        float targetW = 195.0f;
         float scale = targetW / svgBounds.getWidth();
         float targetH = svgBounds.getHeight() * scale;
 
@@ -768,7 +768,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── LEFT THUMBSTICK ──
         {
-            float tsx = (float)dpadCx - 10.0f;
+            float tsx = (float)dpadCx + 10.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -795,7 +795,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── RIGHT THUMBSTICK ──
         {
-            float tsx = (float)faceCx + 10.0f;
+            float tsx = (float)faceCx - 10.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -904,7 +904,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 30,       controlsY + 26 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──
-    int effectsDivY = 280;
+    int effectsDivY = 310;
     {
         float cx = (float)(canvasX + canvasW / 2);
         float halfW = (float)(canvasW / 2 - 16);
@@ -985,13 +985,13 @@ void JoychordEditor::resized()
     chordLabel.setBounds (canvasX, 20, canvasW, 140);
 
     // Effects area label
-    effectsLabel.setBounds (canvasX + 12, 284, 60, 14);
+    effectsLabel.setBounds (canvasX + 12, 314, 60, 14);
 
     // Knobs row (below effects divider)
     int knobW = 70;
     int knobH = 84;
     int knobGap = 10;
-    int knobY = 300;
+    int knobY = 330;
     int knobStartX = canvasX + 12;
 
     if (masterVolumeKnob)
@@ -1004,13 +1004,12 @@ void JoychordEditor::resized()
     // FX drawer button
     fxDrawerBtn.setBounds (knobStartX + 3 * (knobW + knobGap), knobY + 20, 40, 40);
 
-    // LED Meters (right side of canvas)
-    int meterW = 14;
-    int meterH = 100;
-    int meterX = canvasX + canvasW - 40;
-    int meterY = knobY;
-    meterL.setBounds (meterX, meterY, meterW, meterH);
-    meterR.setBounds (meterX + meterW + 4, meterY, meterW, meterH);
+    // LED Meters (horizontal, under knob row)
+    int meterH = 10;
+    int meterW = 3 * (knobW + knobGap) - knobGap;  // span all 3 knobs
+    int meterY = knobY + knobH + 4;
+    meterL.setBounds (knobStartX, meterY, meterW / 2 - 2, meterH);
+    meterR.setBounds (knobStartX + meterW / 2 + 2, meterY, meterW / 2 - 2, meterH);
 
     // Toast overlay (full canvas area for centered toast messages)
     toastOverlay.setBounds (sidebarWidth, 0, canvasW, getHeight());
