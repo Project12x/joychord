@@ -768,7 +768,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── LEFT THUMBSTICK ──
         {
-            float tsx = (float)dpadCx + 18.0f;
+            float tsx = (float)dpadCx + 23.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -795,7 +795,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // ── RIGHT THUMBSTICK ──
         {
-            float tsx = (float)faceCx - 18.0f;
+            float tsx = (float)faceCx - 23.0f;
             float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
@@ -881,15 +881,15 @@ void JoychordEditor::paint (juce::Graphics& g)
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
         juce::String labelStr = getRoleLabel (processor.getRoleMap().getRole (btnId));
         if (labelStr.isNotEmpty()) {
-            int textW = labelStr.length() * 7 + 8;  // approximate pill width
-            int pillX = (just == juce::Justification::centredRight) ? x + 28 - textW : x;
+            int textW = labelStr.length() * 6 + 6;  // approximate pill width
+            int pillX = (just == juce::Justification::centredRight) ? x + 22 - textW : x;
             auto pill = juce::Rectangle<float> ((float)pillX, (float)y, (float)textW, 13.0f);
             g.setColour (accent.withAlpha (0.08f));
             g.fillRoundedRectangle (pill, 3.0f);
             g.setColour (accent.withAlpha (0.2f));
             g.drawRoundedRectangle (pill, 3.0f, 0.5f);
             g.setColour (juce::Colour (0xffc0c0d0));
-            g.drawText (labelStr, x, y, 28, 13, just);
+            g.drawText (labelStr, x, y, 22, 13, just);
         }
     };
 
@@ -900,7 +900,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
     drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 30,       controlsY - 26 - 5, juce::Justification::centredRight);
     drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 30, controlsY - 5,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 + 2,  controlsY - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 - 13, controlsY - 5,      juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 30,       controlsY + 26 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──
