@@ -15,6 +15,7 @@ enum class ModTarget
     Volume,
     ModWheel,       // CC1
     Expression,     // CC11
+    WahPosition,    // Wah pedal sweep
     Count
 };
 
@@ -32,6 +33,7 @@ inline const char* modTargetName (ModTarget t)
         case ModTarget::Volume:          return "Volume";
         case ModTarget::ModWheel:        return "Mod Wheel (CC1)";
         case ModTarget::Expression:      return "Expression (CC11)";
+        case ModTarget::WahPosition:     return "Wah Position";
         default:                         return "Unknown";
     }
 }

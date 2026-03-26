@@ -95,6 +95,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     layout.add (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID ("filterRes", 1), "Filter Resonance",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.1f));
+
+    // Wah effect (bandpass sweep)
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("wahPosition", 1), "Wah Position",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("wahResonance", 1), "Wah Resonance",
+        juce::NormalisableRange<float> (0.0f, 0.95f, 0.01f), 0.7f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("wahEnabled", 1), "Wah Enabled", false));
+
     layout.add (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID ("chorusRate", 1), "Chorus Rate",
         juce::NormalisableRange<float> (0.1f, 5.0f, 0.01f), 0.5f));
@@ -735,6 +746,8 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         float rvMix    = apvts.getRawParameterValue ("reverbMix")->load();
         float fCut     = apvts.getRawParameterValue ("filterCutoff")->load();
         float fRes     = apvts.getRawParameterValue ("filterRes")->load();
+        float wahPos   = apvts.getRawParameterValue ("wahPosition")->load();
+        float wahRes   = apvts.getRawParameterValue ("wahResonance")->load();
         float chRate   = apvts.getRawParameterValue ("chorusRate")->load();
         float chMix    = apvts.getRawParameterValue ("chorusMix")->load();
 
@@ -768,6 +781,7 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         int numSamples = buffer.getNumSamples();
 
         bool filtOn   = apvts.getRawParameterValue ("filterEnabled")->load() > 0.5f;
+        bool wahOn    = apvts.getRawParameterValue ("wahEnabled")->load() > 0.5f;
         bool compOn   = apvts.getRawParameterValue ("compEnabled")->load() > 0.5f;
         bool chOn     = apvts.getRawParameterValue ("chorusEnabled")->load() > 0.5f;
         bool flOn     = apvts.getRawParameterValue ("flangerEnabled")->load() > 0.5f;
@@ -816,6 +830,24 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 filterR.setRes (static_cast<double> (sfRes * 1.8));
                 L[i] = filterL.process (L[i]);
                 if (R) R[i] = filterR.process (R[i]);
+            }
+
+            // 1b. Wah (SVFilter BandPass sweep)
+            if (wahOn)
+            {
+                float sWahPos = smoothWahPos.process (wahPos);
+                float sWahRes = smoothWahRes.process (wahRes);
+
+                // Map 0-1 position to 200-4000 Hz (exp sweep)
+                double wahFreq = 200.0 * std::pow (20.0, static_cast<double> (sWahPos));
+                wahFilterL.setMode (gm::SVFilter::Mode::BandPass);
+                wahFilterL.setCutoff (wahFreq, getSampleRate());
+                wahFilterL.setResonance (static_cast<double> (sWahRes));
+                wahFilterR.setMode (gm::SVFilter::Mode::BandPass);
+                wahFilterR.setCutoff (wahFreq, getSampleRate());
+                wahFilterR.setResonance (static_cast<double> (sWahRes));
+                L[i] = static_cast<float> (wahFilterL.process (static_cast<double> (L[i])));
+                if (R) R[i] = static_cast<float> (wahFilterR.process (static_cast<double> (R[i])));
             }
 
             // 2. Compressor (per-sample via processSample for now)

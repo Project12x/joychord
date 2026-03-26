@@ -331,6 +331,19 @@ void JoychordEditor::timerCallback()
     rb = processor.rbState.load();
     connected = processor.gamepadConnected.load();
 
+    // Drawer slide animation
+    if (animProgress < 1.0f)
+    {
+        animProgress += (1.0f / 30.0f) / kAnimSpeed;  // 30fps timer
+        if (animProgress >= 1.0f)
+            animProgress = 1.0f;
+
+        // Ease-out (decelerate)
+        float t = 1.0f - (1.0f - animProgress) * (1.0f - animProgress);
+        int w = animStartW + static_cast<int> (t * (animTargetW - animStartW));
+        setSize (w, getHeight());
+    }
+
     // Only show Load SFZ button if SFZ (index 4) is selected
     loadSfzBtn.setVisible (static_cast<int>(processor.apvts.getParameterAsValue("synthMode").getValue()) == 3);
 
@@ -1212,7 +1225,7 @@ void JoychordEditor::toggleDrawer()
     drawerOpen = !drawerOpen;
     int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
     effectsDrawer->setVisible (drawerOpen);
-    setSize (targetW, getHeight());
+    animateToWidth (targetW);
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
 }
 
@@ -1235,7 +1248,7 @@ void JoychordEditor::toggleSynthDrawer()
     synthDrawerOpen = !synthDrawerOpen;
     int targetW = synthDrawerOpen ? mainWidth + drawerWidth : mainWidth;
     synthDrawer->setVisible (synthDrawerOpen);
-    setSize (targetW, getHeight());
+    animateToWidth (targetW);
     synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
 }
 
@@ -1258,8 +1271,15 @@ void JoychordEditor::toggleAxisDrawer()
     axisDrawerOpen = !axisDrawerOpen;
     int targetW = axisDrawerOpen ? mainWidth + drawerWidth : mainWidth;
     axisDrawer->setVisible (axisDrawerOpen);
-    setSize (targetW, getHeight());
+    animateToWidth (targetW);
     axisDrawerBtn.setup (axisDrawerOpen ? "<<" : "CTRL");
+}
+
+void JoychordEditor::animateToWidth (int targetW)
+{
+    animStartW = getWidth();
+    animTargetW = targetW;
+    animProgress = 0.0f;
 }
 
 void JoychordEditor::refreshPresetList()

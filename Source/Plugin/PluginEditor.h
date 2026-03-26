@@ -51,6 +51,7 @@ private:
     void toggleDrawer();
     void toggleSynthDrawer();
     void toggleAxisDrawer();
+    void animateToWidth (int targetW);
 
     JoychordProcessor& processor;
 
@@ -114,6 +115,12 @@ private:
     gm::GmTextButton axisDrawerBtn;
     std::unique_ptr<AxisDrawer> axisDrawer;
     bool axisDrawerOpen = false;
+
+    // Drawer animation
+    int   animStartW = 0;
+    int   animTargetW = 0;
+    float animProgress = 1.0f;  // 0..1; 1 = done
+    static constexpr float kAnimSpeed = 0.15f; // seconds
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;

@@ -1,6 +1,6 @@
 #include "ModulationRouter.h"
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 ModulationRouter::ModulationRouter()
 {
@@ -202,6 +202,7 @@ const char* ModulationRouter::targetToParamId (ModTarget t)
         case ModTarget::ChorusDepth:     return "chorusDepth";
         case ModTarget::DelayMix:        return "delayMix";
         case ModTarget::Volume:          return "masterVolume";
+        case ModTarget::WahPosition:     return "wahPosition";
         default:                         return nullptr;
     }
 }

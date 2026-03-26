@@ -14,6 +14,7 @@
 #include <ghostmoon/PingPongDelay.h>
 #include <ghostmoon/ShimmerReverb.h>
 #include <ghostmoon/Dither.h>
+#include <ghostmoon/SVFilter.h>
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
@@ -124,6 +125,7 @@ private:
     // Effects chain
     gm::PlateReverb    reverb;
     gm::MoogLadder     filterL, filterR;
+    gm::SVFilter        wahFilterL, wahFilterR;  // Bandpass wah
     gm::Chorus         chorus;
     gm::Compressor     compressor;
     gm::Flanger        flanger;
@@ -152,6 +154,8 @@ private:
     gm::ParamSmoother<float> smoothShimmerDecay{0.02f};
     gm::ParamSmoother<float> smoothShimmerAmt{0.02f};
     gm::ParamSmoother<float> smoothShimmerMix{0.02f};
+    gm::ParamSmoother<float> smoothWahPos{0.02f};
+    gm::ParamSmoother<float> smoothWahRes{0.02f};
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;
