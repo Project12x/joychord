@@ -449,14 +449,23 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRect (canvasArea);
     }
 
-    // Title with glow
-    g.setFont (typo.getHeaderFont (20.0f));
-    g.setColour (accent.withAlpha (0.12f));
-    g.drawText ("Joychord", canvasX + 2, 10, canvasW, 24, juce::Justification::centred);
-    g.setColour (accent.withAlpha (0.25f));
-    g.drawText ("Joychord", canvasX + 1, 9, canvasW, 24, juce::Justification::centred);
-    g.setColour (accent);
-    g.drawText ("Joychord", canvasX, 8, canvasW, 24, juce::Justification::centred);
+    // Logo image (alpha-blended)
+    {
+        auto logoImg = juce::ImageCache::getFromMemory (
+            BinaryData::testlogo_png, BinaryData::testlogo_pngSize);
+        if (logoImg.isValid())
+        {
+            int logoH = 28;
+            float scale = (float)logoH / (float)logoImg.getHeight();
+            int logoW = (int)(logoImg.getWidth() * scale);
+            int logoX = canvasX + (canvasW - logoW) / 2;
+            int logoY = 6;
+            g.setOpacity (0.85f);
+            g.drawImage (logoImg, logoX, logoY, logoW, logoH,
+                         0, 0, logoImg.getWidth(), logoImg.getHeight());
+            g.setOpacity (1.0f);
+        }
+    }
 
     // ── CHORD READOUT GLOW (melatonin blur) ──
     if (processor.lastChordName.isNotEmpty())
