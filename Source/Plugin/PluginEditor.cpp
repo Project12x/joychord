@@ -551,7 +551,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRect (canvasArea);
     }
 
-    // Logo image (alpha-blended)
+    // Logo image (alpha-blended) with soft edge fade
     {
         auto logoImg = juce::ImageCache::getFromMemory (
             BinaryData::testlogo_png, BinaryData::testlogo_pngSize);
@@ -562,9 +562,33 @@ void JoychordEditor::paint (juce::Graphics& g)
             int logoW = (int)(logoImg.getWidth() * scale);
             int logoX = canvasX + (canvasW - logoW) / 2;
             int logoY = 2;
-            g.setOpacity (0.45f);
-            g.drawImage (logoImg, logoX, logoY, logoW, logoH,
-                         0, 0, logoImg.getWidth(), logoImg.getHeight());
+
+            // Create ARGB copy (source PNG may be opaque RGB)
+            int w = logoImg.getWidth(), h = logoImg.getHeight();
+            juce::Image faded (juce::Image::ARGB, w, h, true);
+            {
+                juce::Graphics fg (faded);
+                fg.drawImageAt (logoImg, 0, 0);
+            }
+
+            // Use multiplyAlphaAt -- the correct JUCE API for premultiplied images
+            int mx = w / 5, my = h / 5;  // 20% from each edge, center 60% stays opaque
+            for (int y = 0; y < h; ++y)
+            {
+                float dy = juce::jmin (1.0f, (float) juce::jmin (y, h - 1 - y) / (float) my);
+                dy *= dy;  // squared for fast ramp to opaque
+                for (int x = 0; x < w; ++x)
+                {
+                    float dx = juce::jmin (1.0f, (float) juce::jmin (x, w - 1 - x) / (float) mx);
+                    dx *= dx;  // squared
+                    float a = juce::jmin (dx, dy);
+                    faded.multiplyAlphaAt (x, y, a);
+                }
+            }
+
+            g.setOpacity (0.65f);
+            g.drawImage (faded, logoX, logoY, logoW, logoH,
+                         0, 0, w, h);
             g.setOpacity (1.0f);
         }
     }
