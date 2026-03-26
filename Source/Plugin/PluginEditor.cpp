@@ -540,50 +540,50 @@ void JoychordEditor::paint (juce::Graphics& g)
         float cx = (float)hudCx;
         float cy = (float)hudCy;
 
-        // Body contour built from bezier curves for an organic controller shape
-        float bodyHalfW = 100.0f;
-        float bodyHalfH = 58.0f;
-        float gripExt = 35.0f;     // how far grips extend below
-        float shoulderInset = 15.0f;
-
+        // Load vectorized gamepad body silhouette (traced from generated PNG)
+        // Original SVG viewBox 640x640; coordinates from potrace contour trace
         juce::Path bodyPath;
-        // Start at top-left shoulder area, go clockwise
-        float tl_x = cx - bodyHalfW;
-        float tr_x = cx + bodyHalfW;
-        float top_y = cy - bodyHalfH;
-        float bot_y = cy + bodyHalfH;
-        float gripBot = bot_y + gripExt;
-
-        // Top edge (slightly curved inward for shoulder contour)
-        bodyPath.startNewSubPath (tl_x + shoulderInset, top_y);
-        bodyPath.quadraticTo (cx, top_y - 6, tr_x - shoulderInset, top_y);
-
-        // Right shoulder curve down
-        bodyPath.cubicTo (tr_x + 8, top_y, tr_x + 10, top_y + 20, tr_x, cy - 10);
-
-        // Right side down to grip
-        bodyPath.cubicTo (tr_x + 4, cy + 15, tr_x - 10, bot_y - 10, tr_x - 18, bot_y);
-
-        // Right grip (extends down)
-        bodyPath.cubicTo (tr_x - 12, bot_y + 10, tr_x - 22, gripBot, tr_x - 35, gripBot);
-        bodyPath.cubicTo (tr_x - 48, gripBot, tr_x - 48, bot_y + 5, tr_x - 50, bot_y - 5);
-
-        // Bottom edge
-        bodyPath.quadraticTo (cx, bot_y + 4, tl_x + 50, bot_y - 5);
-
-        // Left grip (extends down)
-        bodyPath.cubicTo (tl_x + 48, bot_y + 5, tl_x + 48, gripBot, tl_x + 35, gripBot);
-        bodyPath.cubicTo (tl_x + 22, gripBot, tl_x + 12, bot_y + 10, tl_x + 18, bot_y);
-
-        // Left side up from grip
-        bodyPath.cubicTo (tl_x + 10, bot_y - 10, tl_x - 4, cy + 15, tl_x, cy - 10);
-
-        // Left shoulder curve back to top
-        bodyPath.cubicTo (tl_x - 10, top_y + 20, tl_x - 8, top_y, tl_x + shoulderInset, top_y);
-
+        bodyPath.startNewSubPath (186, 137);
+        bodyPath.lineTo (209, 138); bodyPath.lineTo (223, 148);
+        bodyPath.lineTo (418, 147); bodyPath.lineTo (434, 137);
+        bodyPath.lineTo (454, 137); bodyPath.lineTo (482, 144);
+        bodyPath.lineTo (508, 158); bodyPath.lineTo (516, 167);
+        bodyPath.lineTo (519, 184); bodyPath.lineTo (531, 199);
+        bodyPath.lineTo (543, 227); bodyPath.lineTo (567, 349);
+        bodyPath.lineTo (574, 404); bodyPath.lineTo (575, 439);
+        bodyPath.lineTo (569, 464); bodyPath.lineTo (557, 485);
+        bodyPath.lineTo (546, 495); bodyPath.lineTo (530, 502);
+        bodyPath.lineTo (514, 502); bodyPath.lineTo (495, 493);
+        bodyPath.lineTo (479, 478); bodyPath.lineTo (462, 454);
+        bodyPath.lineTo (432, 397); bodyPath.lineTo (417, 386);
+        bodyPath.lineTo (226, 385); bodyPath.lineTo (216, 389);
+        bodyPath.lineTo (205, 400); bodyPath.lineTo (174, 459);
+        bodyPath.lineTo (147, 491); bodyPath.lineTo (129, 501);
+        bodyPath.lineTo (109, 502); bodyPath.lineTo (87, 490);
+        bodyPath.lineTo (77, 478);  bodyPath.lineTo (68, 458);
+        bodyPath.lineTo (64, 438);  bodyPath.lineTo (64, 417);
+        bodyPath.lineTo (74, 337);  bodyPath.lineTo (95, 231);
+        bodyPath.lineTo (107, 201); bodyPath.lineTo (120, 184);
+        bodyPath.lineTo (121, 172); bodyPath.lineTo (126, 163);
+        bodyPath.lineTo (152, 146);
         bodyPath.closeSubPath();
 
-        // Drop shadow (offset and blurred)
+        // Scale path from SVG space (640x640) to HUD space
+        auto svgBounds = bodyPath.getBounds();
+        float targetW = 230.0f;
+        float scale = targetW / svgBounds.getWidth();
+        float targetH = svgBounds.getHeight() * scale;
+
+        bodyPath.applyTransform (juce::AffineTransform::translation (
+            -svgBounds.getCentreX(), -svgBounds.getCentreY()));
+        bodyPath.applyTransform (juce::AffineTransform::scale (scale, scale));
+        bodyPath.applyTransform (juce::AffineTransform::translation (cx, cy));
+
+        auto bodyBounds = bodyPath.getBounds();
+        float top_y = bodyBounds.getY();
+        float gripBot = bodyBounds.getBottom();
+
+        // Drop shadow
         {
             juce::Path shadowPath (bodyPath);
             shadowPath.applyTransform (juce::AffineTransform::translation (0.0f, 4.0f));
@@ -610,11 +610,12 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.fillPath (bodyPath);
         }
 
-        // Subtle edge specular
+        // Subtle edge specular (left side)
         {
+            float leftEdge = bodyBounds.getX();
             juce::ColourGradient edgeSpec (
-                juce::Colour (0x08ffffff), tl_x, cy,
-                juce::Colours::transparentBlack, tl_x + 15, cy, false);
+                juce::Colour (0x08ffffff), leftEdge, cy,
+                juce::Colours::transparentBlack, leftEdge + 15, cy, false);
             g.setGradientFill (edgeSpec);
             g.fillPath (bodyPath);
         }
