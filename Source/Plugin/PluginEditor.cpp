@@ -904,15 +904,15 @@ void JoychordEditor::paint (juce::Graphics& g)
         }
     };
 
-    drawRoleLabel (ButtonId::Y, faceCx + r + 2,            controlsY - spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::Y, faceCx + r + 12,            controlsY - spacing - 5, juce::Justification::centredLeft);
     drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30, controlsY - 5,           juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  controlsY - 5,           juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::A, faceCx + r + 2,            controlsY + spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 12,  controlsY - 5,           juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::A, faceCx + r + 12,            controlsY + spacing - 5, juce::Justification::centredLeft);
 
-    drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 30,       controlsY - 26 - 5, juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 30, controlsY - 5,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 - 13, controlsY - 5,      juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 30,       controlsY + 26 - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 12,       controlsY - 26 - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 12, controlsY - 5,      juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 - 16, controlsY - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 12,       controlsY + 26 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──
     int effectsDivY = 310;
