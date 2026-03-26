@@ -204,25 +204,25 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     };
     addAndMakeVisible (paramPresetBox);
 
-    presetSaveBtn.setup ("S");
+    presetSaveBtn.setup (" ");
     presetSaveBtn.setTooltip ("Save preset");
     presetSaveBtn.onClick = [this] { savePresetWithDialog(); };
     presetSaveBtn.getButton().onClick = [this] { savePresetWithDialog(); };
     addAndMakeVisible (presetSaveBtn);
 
-    presetDeleteBtn.setup ("X");
+    presetDeleteBtn.setup (" ");
     presetDeleteBtn.setTooltip ("Delete preset");
     presetDeleteBtn.onClick = [this] { deleteCurrentPreset(); };
     presetDeleteBtn.getButton().onClick = [this] { deleteCurrentPreset(); };
     addAndMakeVisible (presetDeleteBtn);
 
-    presetPrevBtn.setup ("<");
+    presetPrevBtn.setup (" ");
     presetPrevBtn.setTooltip ("Previous preset");
     presetPrevBtn.onClick = [this] { presetMgr->loadPreviousPreset(); refreshPresetList(); };
     presetPrevBtn.getButton().onClick = [this] { presetMgr->loadPreviousPreset(); refreshPresetList(); };
     addAndMakeVisible (presetPrevBtn);
 
-    presetNextBtn.setup (">");
+    presetNextBtn.setup (" ");
     presetNextBtn.setTooltip ("Next preset");
     presetNextBtn.onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
     presetNextBtn.getButton().onClick = [this] { presetMgr->loadNextPreset(); refreshPresetList(); };
@@ -896,7 +896,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     drawBtn (faceCx,              controlsY + spacing, "A",  btnA, juce::Colour (0xff00aa44));
 
     // Degree labels (accent-tinted pill background)
-    g.setFont (typo.getValueFont (9.0f));
+    g.setFont (typo.getHeaderFont (9.0f));
 
     auto drawRoleLabel = [&](ButtonId btnId, int x, int y, juce::Justification just) {
         juce::String labelStr = getRoleLabel (processor.getRoleMap().getRole (btnId));
@@ -935,6 +935,68 @@ void JoychordEditor::paint (juce::Graphics& g)
         g.fillRect (canvasX + 16, effectsDivY, canvasW - 32, 1);
     }
 
+}
+
+void JoychordEditor::paintOverChildren (juce::Graphics& g)
+{
+    auto accent = juce::Colour (0xff00cccc);
+
+    // Helper: draw a vector icon centered in a button's bounds
+    auto drawIconInBtn = [&](gm::GmTextButton& btn, auto drawFn) {
+        auto b = btn.getBounds().toFloat();
+        drawFn (g, b, accent);
+    };
+
+    // ◀ Prev chevron
+    drawIconInBtn (presetPrevBtn, [](juce::Graphics& g2, juce::Rectangle<float> b, juce::Colour col) {
+        juce::Path p;
+        float cx = b.getCentreX(), cy = b.getCentreY(), s = 5.0f;
+        p.startNewSubPath (cx + s * 0.4f, cy - s);
+        p.lineTo (cx - s * 0.4f, cy);
+        p.lineTo (cx + s * 0.4f, cy + s);
+        g2.setColour (col);
+        g2.strokePath (p, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved));
+    });
+
+    // ▶ Next chevron
+    drawIconInBtn (presetNextBtn, [](juce::Graphics& g2, juce::Rectangle<float> b, juce::Colour col) {
+        juce::Path p;
+        float cx = b.getCentreX(), cy = b.getCentreY(), s = 5.0f;
+        p.startNewSubPath (cx - s * 0.4f, cy - s);
+        p.lineTo (cx + s * 0.4f, cy);
+        p.lineTo (cx - s * 0.4f, cy + s);
+        g2.setColour (col);
+        g2.strokePath (p, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved));
+    });
+
+    // 💾 Save (floppy disk outline)
+    drawIconInBtn (presetSaveBtn, [](juce::Graphics& g2, juce::Rectangle<float> b, juce::Colour col) {
+        float cx = b.getCentreX(), cy = b.getCentreY(), s = 6.0f;
+        auto disk = juce::Rectangle<float> (cx - s, cy - s, s * 2, s * 2);
+        // Floppy body
+        juce::Path p;
+        p.addRoundedRectangle (disk, 1.5f);
+        g2.setColour (col);
+        g2.strokePath (p, juce::PathStrokeType (1.4f));
+        // Label area (bottom center rectangle)
+        auto label = disk.reduced (s * 0.25f, 0).withTop (cy + s * 0.1f).withBottom (cy + s * 0.75f);
+        g2.fillRect (label);
+        // Slot (top center)
+        auto slot = juce::Rectangle<float> (cx - s * 0.35f, cy - s + 1.0f, s * 0.7f, s * 0.5f);
+        g2.fillRect (slot);
+    });
+
+    // ✕ Delete (X mark)
+    drawIconInBtn (presetDeleteBtn, [](juce::Graphics& g2, juce::Rectangle<float> b, juce::Colour col) {
+        float cx = b.getCentreX(), cy = b.getCentreY(), s = 4.5f;
+        juce::Path p;
+        p.startNewSubPath (cx - s, cy - s);
+        p.lineTo (cx + s, cy + s);
+        p.startNewSubPath (cx + s, cy - s);
+        p.lineTo (cx - s, cy + s);
+        g2.setColour (col);
+        g2.strokePath (p, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved));
+    });
 }
 
 void JoychordEditor::resized()

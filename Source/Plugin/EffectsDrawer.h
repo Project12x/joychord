@@ -248,7 +248,7 @@ private:
         }
 
     private:
-        int totalHeight = 1400;
+        int totalHeight = 2000;
         std::vector<int> dividerYs;
 
         // Toggles
