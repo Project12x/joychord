@@ -14,6 +14,7 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Auto-enable effects on axis assignment**: assigning an axis to Filter/Wah/Reverb/Chorus/Delay automatically enables that effect section
 
 ### Fixed
+- **Logo edge fade**: implemented proper premultiplied-alpha edge dissolve using `Image::multiplyAlphaAt()` — previous `setPixelColour(withAlpha())` approach broke premultiplied pixel data, causing dark tint instead of transparency. 20% fade margins with squared falloff curve, 0.65 base opacity.
 - **Lock-free CC cleanup queue** (`ModulationRouter`): switching axis targets now queues a cleanup CC (e.g. CC7=100 when leaving Volume) dispatched on the next audio block via `popPendingCC`
 - **`paramCallback` denormalization**: was storing normalized [0,1] into raw APVTS atomics; now uses `AudioParameterFloat::range.convertFrom0to1` for correct skewed Hz/dB conversion
 - **ParamSmoother startup**: all smoothers now `snapTo()` current APVTS value on `prepareToPlay`, eliminating the 0→target startup ramp that made knobs appear broken

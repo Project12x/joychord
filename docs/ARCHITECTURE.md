@@ -2,7 +2,7 @@
 
 ## Overview
 
-Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
+Joychord is a JUCE 8 plugin (VST3 + Standalone) with six main subsystems:
 
 ```
 [XInput Gamepad]
@@ -14,14 +14,15 @@ Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
        |           |
        |     [StrumEngine]      --> articulate / legato / timing spread
        |
-       +---> [ModulationRouter] --> pitch bend, CC74, CC91, expression
+       +---> [ModulationRouter] --> axis-to-param mapping with floor modulation
        
        both feed into:
        
  [PluginProcessor]
        |
+       +---> [GhostmoonVoice / TinySoundFont]  --> audio synthesis
+       +---> [9-Stage Effects Chain]            --> filter, comp, chorus, flanger, phaser, delay, reverb, shimmer, dither
        +---> MIDI Output (DAW / loopMIDI)
-       +---> Internal Synth (Standalone)
 ```
 
 ## Subsystems
@@ -39,31 +40,52 @@ Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
 
 ### ChordEngine (`Source/Engine/ChordEngine`)
 - Maintains global key + scale selection
-- Resolves `Chord(degree)` → set of MIDI note numbers using mahler.c interval math (`mah_get_scale`, `mah_get_chord`)
-- Applies `Inversion(n)` via `mah_invert_chord()`
-- Applies `Extension(type)` to add/remove intervals
-- Voicing options: close position, drop-2
-- **Dijkstra voicing scorer**: on chord change, enumerates possible voicings, scores each by total semitone distance from previous chord, picks minimum-movement voicing
-- **Reverse chord identification**: `mah_return_chord()` powers UI chord name display (`Cmaj7/E`)
+- Resolves `Chord(degree)` -> set of MIDI note numbers using mahler.c interval math
+- Applies inversions, extensions (7th, sus4, sus2, add9), drop-2 voicing
+- **Dijkstra voicing scorer**: minimum-movement voicing selection on chord change
+- **Reverse chord identification**: powers UI chord name display (`Cmaj7/E`)
 - All math is pure (no side effects); easily unit-tested without JUCE
 
 ### StrumEngine (`Source/Engine/StrumEngine`)
 - Tracks currently held chord + previously held chord
-- On chord button press: compute new chord, detect common tones, emit note-offs only for non-common tones, note-ons for new tones (legato)
-- On StrumDown/StrumUp role trigger: re-emit all notes of current chord with staggered timing (note spread ~10ms per note) and analog velocity
-- On chord button release: emit note-off for all active voices
+- Legato: common-tone retention on chord change
+- Strum: staggered note timing (~10ms/note) with analog velocity
 
 ### ModulationRouter (`Source/Engine/ModulationRouter`)
-- Polls analog stick and trigger axes from GamepadEvent
-- Deadzone filtering (±0.1 by default)
-- Maps L-stick X → pitch bend (14-bit MIDI)
-- Maps L-stick Y → CC11 (expression)
-- Maps R-stick X → CC74 (filter cutoff)
-- Maps R-stick Y → CC91 (reverb send)
+- **6 axes**: LStickX, LStickY, RStickX, RStickY, LT, RT
+- **9 targets**: FilterCutoff, ReverbMix, ChorusDepth, DelayMix, WahPosition, Volume, Expression, PitchShift, None
+- **Floor modulation**: knob sets minimum value, axis sweeps from floor to range maximum
+- `ParamSmoother` on all RT parameters, `snapTo()` on prepare for startup seeding
+- Lock-free CC cleanup via `popPendingCC` API
+- Deadzone filtering (+/-0.1) + EMA smoothing
 
-### Plugin Layer (`Source/Plugin/`)
-- `PluginProcessor`: standard JUCE `AudioProcessor`; no audio processing in v1 (MIDI only from plugin perspective); drives internal synth in standalone
-- `PluginEditor`: controller layout visualization, key/scale picker, role assignment UI, output mode selector, real-time chord name display
+### Synth Engine (`Source/Synth/`)
+- `GhostmoonVoice` — PolyBLEP oscillator (9 waveshapes), UnisonEngine (up to 16 voices), AHDSR envelope, SubOscillator, Portamento, DriftModulator
+- `TinySoundFont` — SF2/SFZ sample playback engine (built-in piano)
+- Selectable in UI: Synth mode vs Sample mode
+
+### Effects Chain (`PluginProcessor::processBlock`)
+
+9-stage per-sample chain with ghostmoon DSP:
+
+1. Filter (MoogLadder) — cutoff, resonance (capped at 1.3x to prevent self-oscillation)
+2. Compressor
+3. Chorus
+4. Flanger
+5. Phaser
+6. Delay
+7. Reverb
+8. Shimmer Reverb
+9. Dither
+
+Each section has an enable toggle and dedicated APVTS parameters. 30 total effect parameters.
+
+### UI (`Source/Plugin/`)
+- `PluginEditor` — DarkMetallicTheme (ghostmoon), textured background with vignette, logo with premultiplied-alpha edge dissolve
+- `EffectsDrawer` — scrollable Viewport with all 9 effect sections in chain order
+- `SynthDrawer` — Oscillator, Unison, Sub Osc, Envelope, Portamento, Drift sections
+- Controls drawer — axis assignment dropdowns for all 6 controller axes
+- Xbox diamond button indicators, chord name display, connection status
 
 ## Threading
 
@@ -71,15 +93,16 @@ Joychord is a JUCE 8 plugin (VST3 + Standalone) with four main subsystems:
 |--------|---------------|
 | Background (XInput poll) | Read controller state, push `GamepadEvent` to FIFO |
 | Message thread | UI updates, role map edits |
-| Audio thread | Consume FIFO, run StrumEngine, emit MIDI, drive synth |
+| Audio thread | Consume FIFO, run StrumEngine, emit MIDI, drive synth + effects |
 
-No allocations on the audio thread; FIFO is lock-free.
+No allocations on the audio thread; FIFO is lock-free. All modulation uses `std::atomic` + `ParamSmoother`.
 
-## Data Flow (MIDI Out mode)
+## Data Flow
 
 ```
-XInput poll → GamepadEvent FIFO → ButtonRoleMap → ChordEngine/StrumEngine
-→ MidiBuffer → PluginProcessor::processBlock → host MIDI output
+XInput poll -> GamepadEvent FIFO -> ButtonRoleMap -> ChordEngine/StrumEngine
+-> MidiBuffer -> PluginProcessor::processBlock -> Synth -> Effects Chain -> Audio Out
+                                                       \-> host MIDI output
 ```
 
 ## Dependencies
@@ -87,20 +110,11 @@ XInput poll → GamepadEvent FIFO → ButtonRoleMap → ChordEngine/StrumEngine
 | Library | Use | License | Integration |
 |---------|-----|---------|-------------|
 | JUCE 8 | Framework, MIDI, synth, UI | GPL / Commercial | FetchContent |
+| ghostmoon | DSP effects + UI catalog | Internal | add_subdirectory |
 | XInput (Windows SDK) | Gamepad input | Royalty-free | System lib |
-| mahler.c | Chord/interval/scale math, enharmonic spelling, reverse chord ID | MIT | FetchContent |
-| sfizz | SFZ sampler for internal synth | BSD-2 | FetchContent (gated, Phase 6) |
+| mahler.c | Chord/interval/scale math | MIT | FetchContent |
+| TinySoundFont | SF2/SFZ playback | MIT | Header-only |
+| nlohmann/json | Preset serialization | MIT | FetchContent |
 | spdlog | Logging | MIT | FetchContent |
 | GoogleTest | Unit tests | BSD-3 | FetchContent |
-| melatonin_blur | UI blur/glow effects | MIT | Phase 8 |
-
-## Research References
-
-Design decisions informed by external projects (not integrated as code):
-
-| Project | What It Informs |
-|---------|----------------|
-| [Teoria.js](https://github.com/saebekassebil/teoria) | ChordEngine API design, chord symbol parser grammar |
-| [optimal-voice-leading](https://github.com/willdickerson/optimal-voice-leading) | Dijkstra voicing scorer algorithm |
-| [ChordSeqAI](https://github.com/PetrIvan/chord-seq-ai-app) | Chord encoding vocabulary, future "Smart Suggest" |
-| Poompatoom (internal) | 3-tier musicality constraints, gestural expression mapping |
+| signalsmith-stretch | Pitch shifting | MIT | FetchContent |

@@ -53,32 +53,26 @@
 
 ---
 
-## Phase 5: Effects Chain  [NEXT]
+## Phase 5: Effects Chain  [COMPLETE]  (v0.4.0)
 
-Wire ghostmoon DSP effects for immediate sonic depth.
+9-stage per-sample effects chain with ghostmoon DSP:
 
-- `gm::CustomFDNReverb` or `gm::AirwindowsVerbity2` with size/damping/mix knobs
-- `gm::MoogLadder` or `gm::SVFilter` with cutoff/resonance knobs
-- `gm::MultiTapDelay` or `gm::AirwindowsTapeDelay2` with time/feedback/mix
-- `gm::ParamSmoother` on all real-time parameters
-- Effects bypass toggles in UI
+- Filter -> Compressor -> Chorus -> Flanger -> Phaser -> Delay -> Reverb -> Shimmer -> Dither
+- 30 new APVTS parameters with enable toggles
+- Scrollable EffectsDrawer UI (juce::Viewport) with all 9 sections
+- SYN button with mutual exclusion (FX/SYN drawers)
 
-## Phase 6: Analog Stick Expression
+## Phase 6: Analog Stick Expression  [COMPLETE]
 
-Map the two analog sticks and triggers to real-time expression.
+Controller axis-to-parameter modulation with floor control:
 
-- **Left stick** — chord modification axis
-  - X: chord quality morph (minor <-> major <-> dominant)
-  - Y: extensions (sus4 <-> natural <-> add9)
-  - L3 press: diminished/augmented toggle
-- **Right stick** — sound shaping
-  - X: stereo width or chorus depth
-  - Y: filter cutoff (MoogLadder)
-  - R3 press: LFO on/off
-- **Triggers** — dynamics
-  - LT: strum velocity / attack intensity
-  - RT: sustain / reverb swell
-- `gm::ParamSmoother` + deadzone filtering + EMA smoothing on all axes
+- **6 assignable axes**: LStickX, LStickY, RStickX, RStickY, LT, RT
+- **9 modulation targets**: FilterCutoff, ReverbMix, ChorusDepth, DelayMix, WahPosition, Volume, Expression, PitchShift, None
+- **Floor modulation**: UI knob sets minimum value, axis sweeps from floor to maximum
+- EMA smoothing + deadzone filtering on all axes
+- Auto-enable effects on axis assignment
+- Lock-free CC cleanup via `popPendingCC` API
+- Defaults: LStickX=PitchBend, LT=ModWheel; all others unassigned
 
 ## Phase 7: Nashville Number System + Expanded Chord Vocabulary
 
@@ -91,19 +85,19 @@ Bring chord vocabulary to HiChord-level (882+ voicings).
 - Secondary dominants (V/V, V/vi, etc.)
 - Chord display showing Nashville number + quality + root note
 
-## Phase 8: Synth Engine (Ghostmoon-Powered)
+## Phase 8: Synth Engine (Ghostmoon-Powered)  [COMPLETE]
 
-Replace sample playback with real synthesis using ghostmoon DSP.
+GhostmoonVoice synth engine replacing SimpleVoice:
 
-- `gm::PolyBLEPOscillator` — multiple waveforms (sine, saw, square, triangle)
-- `gm::AHDSREnvelope` — per-voice amplitude + filter envelopes
-- `gm::UnisonEngine` — supersaw/unison stacking for thick pads
-- `gm::Portamento` — glide between chord changes
-- `gm::FormantOsc` or `gm::VariableShapeOsc` for timbral variety
+- `gm::PolyBLEPOscillator` via UnisonEngine (9 waveshapes, up to 16 unison voices)
+- `gm::AHDSREnvelope` — per-voice amplitude envelope
+- SubOscillator, Portamento, DriftModulator
+- 13 synth APVTS params with per-voice dispatch
+- SynthDrawer UI with Oscillator, Unison, Sub Osc, Envelope, Portamento, Drift sections
+- TinySoundFont SF2/SFZ playback as alternative sound source (built-in piano)
 - Waveform selector in UI
-- Retain sfizz/SFZ mode as alternative sound source
 
-## Phase 9: Strum & Articulation Engine
+## Phase 9: Strum & Articulation Engine  [NEXT]
 
 - `StrumEngine`: hold -> sustain, trigger -> strum
 - StrumDown / StrumUp with per-note spread timing (~10ms/note)
