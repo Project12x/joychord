@@ -95,7 +95,7 @@ private:
     gm::GmTextButton fxDrawerBtn;
     std::unique_ptr<EffectsDrawer> effectsDrawer;
     bool drawerOpen = false;
-    static constexpr int mainWidth = 620;
+    static constexpr int mainWidth = 585;
     static constexpr int sidebarWidth = 200;
     static constexpr int drawerWidth = 180;
 

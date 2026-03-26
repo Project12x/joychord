@@ -571,7 +571,7 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         // Scale path from SVG space (640x640) to HUD space
         auto svgBounds = bodyPath.getBounds();
-        float targetW = 195.0f;
+        float targetW = 230.0f;
         float scale = targetW / svgBounds.getWidth();
         float targetH = svgBounds.getHeight() * scale;
 
