@@ -235,6 +235,26 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     canvasTile = juce::ImageCache::getFromMemory (
         BinaryData::tile_crosshatch_png, BinaryData::tile_crosshatch_pngSize);
 
+    // DPI scale dropdown
+    dpiLabel.setText ("Scale", juce::dontSendNotification);
+    dpiLabel.setFont (typo.getLabelFont (9.0f));
+    dpiLabel.setColour (juce::Label::textColourId, juce::Colour (0xff808090));
+    dpiLabel.setJustificationType (juce::Justification::centredRight);
+    addAndMakeVisible (dpiLabel);
+
+    dpiScaleBox.addItem ("100%", 1);
+    dpiScaleBox.addItem ("125%", 2);
+    dpiScaleBox.addItem ("150%", 3);
+    dpiScaleBox.addItem ("200%", 4);
+    dpiScaleBox.setSelectedId (1, juce::dontSendNotification);
+    dpiScaleBox.onChange = [this] {
+        float scales[] = { 1.0f, 1.25f, 1.5f, 2.0f };
+        int idx = dpiScaleBox.getSelectedId() - 1;
+        if (idx >= 0 && idx < 4)
+            applyDpiScale (scales[idx]);
+    };
+    addAndMakeVisible (dpiScaleBox);
+
     setSize (mainWidth, 480);
     startTimerHz (30);
 }
@@ -1101,6 +1121,13 @@ void JoychordEditor::resized()
     // Status bar
     statusLabel.setBounds (getLocalBounds().withWidth (mainWidth).removeFromBottom (statusH).reduced (16, 0));
 
+    // DPI scale dropdown (right side of status bar, before version text)
+    {
+        int sbY = getHeight() - statusH;
+        dpiLabel.setBounds (mainWidth - 140, sbY + 2, 30, statusH - 4);
+        dpiScaleBox.setBounds (mainWidth - 108, sbY + 3, 55, statusH - 6);
+    }
+
     // Effects drawer
     if (effectsDrawer)
         effectsDrawer->setBounds (mainWidth, 0, drawerWidth, getHeight());
@@ -1202,4 +1229,9 @@ void JoychordEditor::deleteCurrentPreset()
     presetMgr->scanPresets();
     refreshPresetList();
     toastOverlay.showToast ("Preset deleted", gm::ToastOverlay::Type::Info, 1500);
+}
+
+void JoychordEditor::applyDpiScale (float scale)
+{
+    setTransform (juce::AffineTransform::scale (scale));
 }

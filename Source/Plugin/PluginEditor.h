@@ -122,6 +122,10 @@ private:
     void refreshPresetList();
     void savePresetWithDialog();
     void deleteCurrentPreset();
+    // DPI scale
+    juce::ComboBox dpiScaleBox;
+    juce::Label dpiLabel;
+    void applyDpiScale (float scale);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JoychordEditor)
 };
