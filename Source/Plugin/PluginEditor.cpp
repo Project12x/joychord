@@ -534,6 +534,7 @@ void JoychordEditor::paint (juce::Graphics& g)
     int spacing = 22;
     int faceCx = hudCx + 55;
     int dpadCx = hudCx - 55;
+    int controlsY = hudCy - 30;  // d-pad, face buttons, thumbsticks sit higher on body
 
     // ── GAMEPAD BODY ──
     {
@@ -719,7 +720,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         // ── D-PAD CROSS (larger) ──
         {
             float dx = (float)dpadCx;
-            float dy = cy;
+            float dy = (float)controlsY;
             float armW = 20.0f;    // wider arms
             float armL = 26.0f;    // longer reach
             float cr = 3.5f;
@@ -768,7 +769,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         // ── LEFT THUMBSTICK ──
         {
             float tsx = (float)dpadCx - 10.0f;
-            float tsy = cy + 40.0f;
+            float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
             // Socket
@@ -795,7 +796,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         // ── RIGHT THUMBSTICK ──
         {
             float tsx = (float)faceCx + 10.0f;
-            float tsy = cy + 40.0f;
+            float tsy = (float)controlsY + 40.0f;
             float tsR = 11.0f;
 
             g.setColour (juce::Colour (0xff060610));
@@ -832,7 +833,7 @@ void JoychordEditor::paint (juce::Graphics& g)
         };
 
         float dCx = (float)dpadCx;
-        float dCy = (float)hudCy;
+        float dCy = (float)controlsY;
         float armW = 20.0f;
         float armL = 26.0f;
         drawDPadDir (dCx - armW / 2, dCy - armL, armW, armL - 3, dUp, "U");
@@ -869,10 +870,10 @@ void JoychordEditor::paint (juce::Graphics& g)
     };
 
     // Face buttons (right side, on body)
-    drawBtn (faceCx,              hudCy - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
-    drawBtn (faceCx - spacing,    hudCy,           "X",  btnX, juce::Colour (0xff0066cc));
-    drawBtn (faceCx + spacing,    hudCy,           "B",  btnB, juce::Colour (0xffcc2200));
-    drawBtn (faceCx,              hudCy + spacing, "A",  btnA, juce::Colour (0xff00aa44));
+    drawBtn (faceCx,              controlsY - spacing, "Y",  btnY, juce::Colour (0xffccaa00));
+    drawBtn (faceCx - spacing,    controlsY,           "X",  btnX, juce::Colour (0xff0066cc));
+    drawBtn (faceCx + spacing,    controlsY,           "B",  btnB, juce::Colour (0xffcc2200));
+    drawBtn (faceCx,              controlsY + spacing, "A",  btnA, juce::Colour (0xff00aa44));
 
     // Degree labels (accent-tinted pill background)
     g.setFont (typo.getValueFont (9.0f));
@@ -892,15 +893,15 @@ void JoychordEditor::paint (juce::Graphics& g)
         }
     };
 
-    drawRoleLabel (ButtonId::Y, faceCx + r + 2,            hudCy - spacing - 5, juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30, hudCy - 5,           juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  hudCy - 5,           juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::A, faceCx + r + 2,            hudCy + spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::Y, faceCx + r + 2,            controlsY - spacing - 5, juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::X, faceCx - spacing - r - 30, controlsY - 5,           juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::B, faceCx + spacing + r + 2,  controlsY - 5,           juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::A, faceCx + r + 2,            controlsY + spacing - 5, juce::Justification::centredLeft);
 
-    drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 30,       hudCy - 26 - 5, juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 30, hudCy - 5,      juce::Justification::centredRight);
-    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 + 2,  hudCy - 5,      juce::Justification::centredLeft);
-    drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 30,       hudCy + 26 - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DUp,    dpadCx - 26 - 30,       controlsY - 26 - 5, juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DLeft,  dpadCx - 26 - 26 - 30, controlsY - 5,      juce::Justification::centredRight);
+    drawRoleLabel (ButtonId::DRight, dpadCx + 26 + 26 + 2,  controlsY - 5,      juce::Justification::centredLeft);
+    drawRoleLabel (ButtonId::DDown,  dpadCx - 26 - 30,       controlsY + 26 - 5, juce::Justification::centredRight);
 
     // ── Effects section gradient divider in canvas ──
     int effectsDivY = 280;
