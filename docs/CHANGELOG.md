@@ -11,6 +11,17 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ### Added
 
+- **DSP Expansion: 6 new ghostmoon effects** (Compressor, Flanger, Phaser, PingPongDelay, ShimmerReverb, Dither)
+  - 30 new APVTS parameters with enable toggles
+  - 9-stage per-sample effects chain: Filter -> Compressor -> Chorus -> Flanger -> Phaser -> Delay -> Reverb -> Shimmer -> Dither
+- **GhostmoonVoice synth engine** replacing SimpleVoice
+  - PolyBLEP oscillator via UnisonEngine (9 waveshapes, up to 16 unison voices)
+  - AHDSR envelope, SubOscillator, Portamento, DriftModulator
+  - 13 synth APVTS params with per-voice dispatch
+- **Scrollable EffectsDrawer** (juce::Viewport) with all 9 effect sections in chain order
+- **SynthDrawer** (matching format) with Oscillator, Unison, Sub Osc, Envelope, Portamento, Drift sections
+- **SYN button** with mutual exclusion (opening FX closes SYN and vice versa)
+
 - **Phase 3: Button Role System + Presets**
 - ButtonRole variant dispatch: all 16 buttons dispatch via `std::visit` (replaces hardcoded map)
 - Two-phase processBlock: modifiers (extension/octave/key) processed first, then chord producers
