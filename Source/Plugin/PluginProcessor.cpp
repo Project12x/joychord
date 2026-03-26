@@ -110,6 +110,86 @@ juce::AudioProcessorValueTreeState::ParameterLayout JoychordProcessor::createPar
     layout.add (std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID ("reverbEnabled", 1), "Reverb Enabled", true));
 
+    // Compressor
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("compThreshold", 1), "Comp Threshold",
+        juce::NormalisableRange<float> (-60.0f, 0.0f, 0.1f), -18.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("compRatio", 1), "Comp Ratio",
+        juce::NormalisableRange<float> (1.0f, 20.0f, 0.1f), 4.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("compAttack", 1), "Comp Attack",
+        juce::NormalisableRange<float> (0.1f, 100.0f, 0.1f), 5.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("compRelease", 1), "Comp Release",
+        juce::NormalisableRange<float> (10.0f, 1000.0f, 1.0f), 100.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("compEnabled", 1), "Compressor Enabled", false));
+
+    // Flanger
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("flangerRate", 1), "Flanger Rate",
+        juce::NormalisableRange<float> (0.05f, 2.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("flangerDepth", 1), "Flanger Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("flangerFeedback", 1), "Flanger Feedback",
+        juce::NormalisableRange<float> (-0.85f, 0.85f, 0.01f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("flangerMix", 1), "Flanger Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("flangerEnabled", 1), "Flanger Enabled", false));
+
+    // Phaser
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("phaserRate", 1), "Phaser Rate",
+        juce::NormalisableRange<float> (0.05f, 2.0f, 0.01f), 0.4f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("phaserDepth", 1), "Phaser Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("phaserFeedback", 1), "Phaser Feedback",
+        juce::NormalisableRange<float> (0.0f, 0.85f, 0.01f), 0.5f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("phaserMix", 1), "Phaser Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("phaserEnabled", 1), "Phaser Enabled", false));
+
+    // PingPong Delay
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("delayTime", 1), "Delay Time",
+        juce::NormalisableRange<float> (50.0f, 2000.0f, 1.0f), 375.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("delayFeedback", 1), "Delay Feedback",
+        juce::NormalisableRange<float> (0.0f, 0.85f, 0.01f), 0.4f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("delayMix", 1), "Delay Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("delayEnabled", 1), "Delay Enabled", false));
+
+    // Shimmer Reverb
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("shimmerDecay", 1), "Shimmer Decay",
+        juce::NormalisableRange<float> (0.0f, 0.95f, 0.01f), 0.7f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("shimmerAmount", 1), "Shimmer Amount",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID ("shimmerMix", 1), "Shimmer Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("shimmerEnabled", 1), "Shimmer Enabled", false));
+
+    // Dither
+    layout.add (std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID ("ditherBits", 1), "Dither Bits", 8, 24, 24));
+    layout.add (std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID ("ditherEnabled", 1), "Dither Enabled", false));
+
     return layout;
 }
 
@@ -144,6 +224,11 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     filterL.prepare (sampleRate);
     filterR.prepare (sampleRate);
     chorus.prepare (static_cast<float> (sampleRate));
+    compressor.prepare (sampleRate);
+    flanger.prepare (static_cast<float> (sampleRate));
+    phaser.prepare (static_cast<float> (sampleRate));
+    pingPongDelay.prepare (static_cast<float> (sampleRate));
+    shimmerReverb.prepare (static_cast<float> (sampleRate));
 
     // Param smoothers
     smoothReverbDecay.prepare (sampleRate);
@@ -153,6 +238,18 @@ void JoychordProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     smoothFilterRes.prepare (sampleRate);
     smoothChorusRate.prepare (sampleRate);
     smoothChorusMix.prepare (sampleRate);
+    smoothCompThresh.prepare (sampleRate);
+    smoothCompRatio.prepare (sampleRate);
+    smoothFlangerRate.prepare (sampleRate);
+    smoothFlangerMix.prepare (sampleRate);
+    smoothPhaserRate.prepare (sampleRate);
+    smoothPhaserMix.prepare (sampleRate);
+    smoothDelayTime.prepare (sampleRate);
+    smoothDelayFb.prepare (sampleRate);
+    smoothDelayMix.prepare (sampleRate);
+    smoothShimmerDecay.prepare (sampleRate);
+    smoothShimmerAmt.prepare (sampleRate);
+    smoothShimmerMix.prepare (sampleRate);
 
     startTimerHz (100);
 }
@@ -571,13 +668,53 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         float chRate   = apvts.getRawParameterValue ("chorusRate")->load();
         float chMix    = apvts.getRawParameterValue ("chorusMix")->load();
 
+        float cmpThresh = apvts.getRawParameterValue ("compThreshold")->load();
+        float cmpRatio  = apvts.getRawParameterValue ("compRatio")->load();
+        float cmpAtk    = apvts.getRawParameterValue ("compAttack")->load();
+        float cmpRel    = apvts.getRawParameterValue ("compRelease")->load();
+
+        float flRate   = apvts.getRawParameterValue ("flangerRate")->load();
+        float flDepth  = apvts.getRawParameterValue ("flangerDepth")->load();
+        float flFb     = apvts.getRawParameterValue ("flangerFeedback")->load();
+        float flMix    = apvts.getRawParameterValue ("flangerMix")->load();
+
+        float phRate   = apvts.getRawParameterValue ("phaserRate")->load();
+        float phDepth  = apvts.getRawParameterValue ("phaserDepth")->load();
+        float phFb     = apvts.getRawParameterValue ("phaserFeedback")->load();
+        float phMix    = apvts.getRawParameterValue ("phaserMix")->load();
+
+        float dlTime   = apvts.getRawParameterValue ("delayTime")->load();
+        float dlFb     = apvts.getRawParameterValue ("delayFeedback")->load();
+        float dlMix    = apvts.getRawParameterValue ("delayMix")->load();
+
+        float shDecay  = apvts.getRawParameterValue ("shimmerDecay")->load();
+        float shAmt    = apvts.getRawParameterValue ("shimmerAmount")->load();
+        float shMix    = apvts.getRawParameterValue ("shimmerMix")->load();
+
+        int   dtBits   = static_cast<int> (*apvts.getRawParameterValue ("ditherBits"));
+
         auto* L = buffer.getWritePointer (0);
         auto* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
         int numSamples = buffer.getNumSamples();
 
-        bool filtOn = apvts.getRawParameterValue ("filterEnabled")->load() > 0.5f;
-        bool chOn   = apvts.getRawParameterValue ("chorusEnabled")->load() > 0.5f;
-        bool rvOn   = apvts.getRawParameterValue ("reverbEnabled")->load() > 0.5f;
+        bool filtOn   = apvts.getRawParameterValue ("filterEnabled")->load() > 0.5f;
+        bool compOn   = apvts.getRawParameterValue ("compEnabled")->load() > 0.5f;
+        bool chOn     = apvts.getRawParameterValue ("chorusEnabled")->load() > 0.5f;
+        bool flOn     = apvts.getRawParameterValue ("flangerEnabled")->load() > 0.5f;
+        bool phOn     = apvts.getRawParameterValue ("phaserEnabled")->load() > 0.5f;
+        bool dlOn     = apvts.getRawParameterValue ("delayEnabled")->load() > 0.5f;
+        bool rvOn     = apvts.getRawParameterValue ("reverbEnabled")->load() > 0.5f;
+        bool shOn     = apvts.getRawParameterValue ("shimmerEnabled")->load() > 0.5f;
+        bool dtOn     = apvts.getRawParameterValue ("ditherEnabled")->load() > 0.5f;
+
+        // Set compressor params (block-level, not per-sample)
+        if (compOn)
+        {
+            compressor.setThreshold (cmpThresh);
+            compressor.setRatio (cmpRatio);
+            compressor.setAttack (cmpAtk);
+            compressor.setRelease (cmpRel);
+        }
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -589,6 +726,16 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             float sfRes    = smoothFilterRes.process (fRes);
             float schRate  = smoothChorusRate.process (chRate);
             float schMix   = smoothChorusMix.process (chMix);
+            float sFlRate  = smoothFlangerRate.process (flRate);
+            float sFlMix   = smoothFlangerMix.process (flMix);
+            float sPhRate  = smoothPhaserRate.process (phRate);
+            float sPhMix   = smoothPhaserMix.process (phMix);
+            float sDlTime  = smoothDelayTime.process (dlTime);
+            float sDlFb    = smoothDelayFb.process (dlFb);
+            float sDlMix   = smoothDelayMix.process (dlMix);
+            float sShDecay = smoothShimmerDecay.process (shDecay);
+            float sShAmt   = smoothShimmerAmt.process (shAmt);
+            float sShMix   = smoothShimmerMix.process (shMix);
 
             // 1. Filter (MoogLadder LP24)
             if (filtOn)
@@ -601,7 +748,14 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 if (R) R[i] = filterR.process (R[i]);
             }
 
-            // 2. Chorus
+            // 2. Compressor (per-sample via processSample for now)
+            if (compOn)
+            {
+                L[i] = compressor.processSample (L[i]);
+                if (R) R[i] = compressor.processSample (R[i]);
+            }
+
+            // 3. Chorus
             if (chOn && schMix > 0.001f)
             {
                 chorus.setRate (schRate);
@@ -610,7 +764,39 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 chorus.processSample (cL, cR, L[i], R ? R[i] : cL);
             }
 
-            // 3. Reverb (PlateReverb)
+            // 4. Flanger
+            if (flOn && sFlMix > 0.001f)
+            {
+                flanger.setRate (sFlRate);
+                flanger.setDepth (flDepth);
+                flanger.setFeedback (flFb);
+                flanger.setMix (sFlMix);
+                float fL = L[i], fR = R ? R[i] : L[i];
+                flanger.processSample (fL, fR, L[i], R ? R[i] : fL);
+            }
+
+            // 5. Phaser
+            if (phOn && sPhMix > 0.001f)
+            {
+                phaser.setRate (sPhRate);
+                phaser.setDepth (phDepth);
+                phaser.setFeedback (phFb);
+                phaser.setMix (sPhMix);
+                float pL = L[i], pR = R ? R[i] : L[i];
+                phaser.processSample (pL, pR, L[i], R ? R[i] : pL);
+            }
+
+            // 6. PingPong Delay
+            if (dlOn && sDlMix > 0.001f)
+            {
+                pingPongDelay.setTime (sDlTime / 1000.0f); // ms to seconds
+                pingPongDelay.setFeedback (sDlFb);
+                pingPongDelay.setMix (sDlMix);
+                float dL = L[i], dR = R ? R[i] : L[i];
+                pingPongDelay.processSample (dL, dR, L[i], R ? R[i] : dL);
+            }
+
+            // 7. Reverb (PlateReverb)
             if (rvOn && srvMix > 0.001f)
             {
                 reverb.setDecay (srvDecay);
@@ -618,6 +804,23 @@ void JoychordProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                 reverb.setMix (srvMix);
                 float rL = L[i], rR = R ? R[i] : L[i];
                 reverb.processSample (rL, rR, L[i], R ? R[i] : rL);
+            }
+
+            // 8. Shimmer Reverb
+            if (shOn && sShMix > 0.001f)
+            {
+                shimmerReverb.setDecay (sShDecay);
+                shimmerReverb.setShimmer (sShAmt);
+                shimmerReverb.setMix (sShMix);
+                float sL = L[i], sR = R ? R[i] : L[i];
+                shimmerReverb.processSample (sL, sR, L[i], R ? R[i] : sL);
+            }
+
+            // 9. Dither
+            if (dtOn)
+            {
+                L[i] = ditherL.process (L[i], dtBits);
+                if (R) R[i] = ditherR.process (R[i], dtBits);
             }
         }
     }

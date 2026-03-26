@@ -8,6 +8,12 @@
 #include <ghostmoon/MoogLadder.h>
 #include <ghostmoon/Chorus.h>
 #include <ghostmoon/ParamSmoother.h>
+#include <ghostmoon/Compressor.h>
+#include <ghostmoon/Flanger.h>
+#include <ghostmoon/Phaser.h>
+#include <ghostmoon/PingPongDelay.h>
+#include <ghostmoon/ShimmerReverb.h>
+#include <ghostmoon/Dither.h>
 #include "Engine/ChordEngine.h"
 #include "Engine/StrumEngine.h"
 #include "Engine/ButtonRoleMap.h"
@@ -118,6 +124,12 @@ private:
     gm::PlateReverb    reverb;
     gm::MoogLadder     filterL, filterR;
     gm::Chorus         chorus;
+    gm::Compressor     compressor;
+    gm::Flanger        flanger;
+    gm::Phaser         phaser;
+    gm::PingPongDelay  pingPongDelay;
+    gm::ShimmerReverb  shimmerReverb;
+    gm::Dither         ditherL, ditherR;
 
     // Parameter smoothers for RT-safe control
     gm::ParamSmoother<float> smoothReverbDecay{0.02f};
@@ -127,6 +139,18 @@ private:
     gm::ParamSmoother<float> smoothFilterRes{0.02f};
     gm::ParamSmoother<float> smoothChorusRate{0.02f};
     gm::ParamSmoother<float> smoothChorusMix{0.02f};
+    gm::ParamSmoother<float> smoothCompThresh{0.02f};
+    gm::ParamSmoother<float> smoothCompRatio{0.02f};
+    gm::ParamSmoother<float> smoothFlangerRate{0.02f};
+    gm::ParamSmoother<float> smoothFlangerMix{0.02f};
+    gm::ParamSmoother<float> smoothPhaserRate{0.02f};
+    gm::ParamSmoother<float> smoothPhaserMix{0.02f};
+    gm::ParamSmoother<float> smoothDelayTime{0.02f};
+    gm::ParamSmoother<float> smoothDelayFb{0.02f};
+    gm::ParamSmoother<float> smoothDelayMix{0.02f};
+    gm::ParamSmoother<float> smoothShimmerDecay{0.02f};
+    gm::ParamSmoother<float> smoothShimmerAmt{0.02f};
+    gm::ParamSmoother<float> smoothShimmerMix{0.02f};
 
     // Previous gamepad state for edge detection
     GamepadState prevGamepadState;
