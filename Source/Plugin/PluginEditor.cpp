@@ -1326,15 +1326,13 @@ void JoychordEditor::resized()
 
 void JoychordEditor::toggleDrawer()
 {
-    // If synth drawer is open, close it first (instant, no animation)
-    if (synthDrawerOpen)
-    {
+    // Close other drawers instantly (no animation)
+    if (synthDrawerOpen) {
         synthDrawerOpen = false;
         if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
         synthDrawerBtn.setup ("SYN");
     }
-    if (axisDrawerOpen)
-    {
+    if (axisDrawerOpen) {
         axisDrawerOpen = false;
         if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
         axisDrawerBtn.setup ("CTRL");
@@ -1342,26 +1340,28 @@ void JoychordEditor::toggleDrawer()
 
     drawerOpen = !drawerOpen;
     if (drawerOpen) {
-        setSize (mainWidth + drawerWidth, getHeight());  // snap open
-        if (effectsDrawer) effectsDrawer->setVisible (true);
-        drawerAnim_.show();  // slide content in
+        // Pre-position off-screen right BEFORE making visible (prevent 1-frame flash)
+        if (effectsDrawer) {
+            effectsDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
+            effectsDrawer->setVisible (true);
+        }
+        setSize (mainWidth + drawerWidth, getHeight());
+        drawerAnim_.show();
     } else {
-        drawerAnim_.hide();  // slide content out, onComplete snaps back
+        drawerAnim_.hide();
     }
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
 }
 
 void JoychordEditor::toggleSynthDrawer()
 {
-    // If effects drawer is open, close it first (instant)
-    if (drawerOpen)
-    {
+    // Close other drawers instantly
+    if (drawerOpen) {
         drawerOpen = false;
         if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
         fxDrawerBtn.setup ("FX");
     }
-    if (axisDrawerOpen)
-    {
+    if (axisDrawerOpen) {
         axisDrawerOpen = false;
         if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
         axisDrawerBtn.setup ("CTRL");
@@ -1369,8 +1369,11 @@ void JoychordEditor::toggleSynthDrawer()
 
     synthDrawerOpen = !synthDrawerOpen;
     if (synthDrawerOpen) {
+        if (synthDrawer) {
+            synthDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
+            synthDrawer->setVisible (true);
+        }
         setSize (mainWidth + drawerWidth, getHeight());
-        if (synthDrawer) synthDrawer->setVisible (true);
         drawerAnim_.show();
     } else {
         drawerAnim_.hide();
@@ -1380,15 +1383,13 @@ void JoychordEditor::toggleSynthDrawer()
 
 void JoychordEditor::toggleAxisDrawer()
 {
-    // Close other drawers first (instant)
-    if (drawerOpen)
-    {
+    // Close other drawers instantly
+    if (drawerOpen) {
         drawerOpen = false;
         if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
         fxDrawerBtn.setup ("FX");
     }
-    if (synthDrawerOpen)
-    {
+    if (synthDrawerOpen) {
         synthDrawerOpen = false;
         if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
         synthDrawerBtn.setup ("SYN");
@@ -1396,8 +1397,11 @@ void JoychordEditor::toggleAxisDrawer()
 
     axisDrawerOpen = !axisDrawerOpen;
     if (axisDrawerOpen) {
+        if (axisDrawer) {
+            axisDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
+            axisDrawer->setVisible (true);
+        }
         setSize (mainWidth + drawerWidth, getHeight());
-        if (axisDrawer) axisDrawer->setVisible (true);
         drawerAnim_.show();
     } else {
         drawerAnim_.hide();
