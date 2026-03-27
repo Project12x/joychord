@@ -334,28 +334,7 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     setSize (mainWidth, 480);
 
-    // Drawer slide animation (callback mode -- setTransform, not setSize)
-    // Drawer slides from behind main window (left) outward to the right
-    drawerAnim_.setDurationMs (200);
-    drawerAnim_.setOnProgress ([this](float t) {
-        auto* activeDrawer = getActiveDrawer();
-        if (activeDrawer) {
-            // t=0: -drawerWidth (behind main panel), t=1: 0 (natural position)
-            float dx = -(float)drawerWidth * (1.0f - t);
-            activeDrawer->setTransform (juce::AffineTransform::translation (dx, 0.0f));
-        }
-    });
-    drawerAnim_.setOnComplete ([this](bool showing) {
-        if (!showing) {
-            auto* activeDrawer = getActiveDrawer();
-            if (activeDrawer) {
-                activeDrawer->setTransform ({});
-                activeDrawer->setVisible (false);
-            }
-            setSize (mainWidth, getHeight());
-        }
-    });
-    addChildComponent (drawerAnim_);  // parent needed for VBlank peer
+    // (Drawer animation uses JUCE's built-in Desktop::getAnimator().animateComponent)
 
     startTimerHz (30);
 }
@@ -1326,89 +1305,101 @@ void JoychordEditor::resized()
 
 void JoychordEditor::toggleDrawer()
 {
-    // Close other drawers instantly (no animation)
+    // Close other drawers instantly
     if (synthDrawerOpen) {
         synthDrawerOpen = false;
-        if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
+        if (synthDrawer) synthDrawer->setVisible (false);
         synthDrawerBtn.setup ("SYN");
     }
     if (axisDrawerOpen) {
         axisDrawerOpen = false;
-        if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
+        if (axisDrawer) axisDrawer->setVisible (false);
         axisDrawerBtn.setup ("CTRL");
     }
 
     drawerOpen = !drawerOpen;
     if (drawerOpen) {
-        // Pre-position behind main panel, make visible behind all content
-        if (effectsDrawer) {
-            effectsDrawer->setTransform (juce::AffineTransform::translation (-(float)drawerWidth, 0.0f));
-            effectsDrawer->setVisible (true);
-            effectsDrawer->toBack();  // behind main content during slide
-        }
         setSize (mainWidth + drawerWidth, getHeight());
-        drawerAnim_.show();
+        slideDrawerIn (effectsDrawer.get());
     } else {
-        drawerAnim_.hide();
+        slideDrawerOut (effectsDrawer.get());
     }
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
 }
 
 void JoychordEditor::toggleSynthDrawer()
 {
-    // Close other drawers instantly
     if (drawerOpen) {
         drawerOpen = false;
-        if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
+        if (effectsDrawer) effectsDrawer->setVisible (false);
         fxDrawerBtn.setup ("FX");
     }
     if (axisDrawerOpen) {
         axisDrawerOpen = false;
-        if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
+        if (axisDrawer) axisDrawer->setVisible (false);
         axisDrawerBtn.setup ("CTRL");
     }
 
     synthDrawerOpen = !synthDrawerOpen;
     if (synthDrawerOpen) {
-        if (synthDrawer) {
-            synthDrawer->setTransform (juce::AffineTransform::translation (-(float)drawerWidth, 0.0f));
-            synthDrawer->setVisible (true);
-            synthDrawer->toBack();
-        }
         setSize (mainWidth + drawerWidth, getHeight());
-        drawerAnim_.show();
+        slideDrawerIn (synthDrawer.get());
     } else {
-        drawerAnim_.hide();
+        slideDrawerOut (synthDrawer.get());
     }
     synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
 }
 
 void JoychordEditor::toggleAxisDrawer()
 {
-    // Close other drawers instantly
     if (drawerOpen) {
         drawerOpen = false;
-        if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
+        if (effectsDrawer) effectsDrawer->setVisible (false);
         fxDrawerBtn.setup ("FX");
     }
     if (synthDrawerOpen) {
         synthDrawerOpen = false;
-        if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
+        if (synthDrawer) synthDrawer->setVisible (false);
         synthDrawerBtn.setup ("SYN");
     }
 
     axisDrawerOpen = !axisDrawerOpen;
     if (axisDrawerOpen) {
-        if (axisDrawer) {
-            axisDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
-            axisDrawer->setVisible (true);
-        }
         setSize (mainWidth + drawerWidth, getHeight());
-        drawerAnim_.show();
+        slideDrawerIn (axisDrawer.get());
     } else {
-        drawerAnim_.hide();
+        slideDrawerOut (axisDrawer.get());
     }
     axisDrawerBtn.setup (axisDrawerOpen ? "<<" : "CTRL");
+}
+
+void JoychordEditor::slideDrawerIn (juce::Component* drawer)
+{
+    if (!drawer) return;
+    // Start at right edge of expanded window (off-screen right)
+    drawer->setBounds (mainWidth + drawerWidth, 0, drawerWidth, getHeight());
+    drawer->setVisible (true);
+    // Animate to final position (same API as JUCE SidePanel)
+    juce::Desktop::getInstance().getAnimator().animateComponent (
+        drawer,
+        juce::Rectangle<int> (mainWidth, 0, drawerWidth, getHeight()),
+        1.0f, 200, false, 1.0, 0.0);
+}
+
+void JoychordEditor::slideDrawerOut (juce::Component* drawer)
+{
+    if (!drawer) return;
+    // Animate off-screen right
+    juce::Desktop::getInstance().getAnimator().animateComponent (
+        drawer,
+        juce::Rectangle<int> (mainWidth + drawerWidth, 0, drawerWidth, getHeight()),
+        1.0f, 200, false, 1.0, 0.0);
+    // Snap window back after animation completes
+    juce::Timer::callAfterDelay (210, [this, drawer] {
+        if (drawer) drawer->setVisible (false);
+        if (!drawerOpen && !synthDrawerOpen && !axisDrawerOpen)
+            setSize (mainWidth, getHeight());
+    });
 }
 
 void JoychordEditor::animateToWidth (int targetW)

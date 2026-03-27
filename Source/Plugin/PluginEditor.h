@@ -129,8 +129,9 @@ private:
     std::unique_ptr<AxisDrawer> axisDrawer;
     bool axisDrawerOpen = false;
 
-    // Drawer animation (gm::AnimatedPanel in callback mode -- setTransform slide)
-    gm::AnimatedPanel drawerAnim_;
+    // Drawer animation (JUCE built-in ComponentAnimator via Desktop::getAnimator)
+    void slideDrawerIn (juce::Component* drawer);
+    void slideDrawerOut (juce::Component* drawer);
 
     /// Returns whichever drawer is currently active (effects, synth, or axis)
     juce::Component* getActiveDrawer() const {
