@@ -334,14 +334,11 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     setSize (mainWidth, 480);
 
-    // Wire drawer animation (gm::AnimatedPanel in callback mode)
-    drawerAnim_.setTimerHz (30);     // Timer mode: setSize() is too heavy for VBlank rate
-    drawerAnim_.setDurationMs (250);
-    drawerAnim_.setOnProgress ([this](float t) {
-        int w = mainWidth + static_cast<int>(t * drawerWidth);
-        setSize (w, getHeight());
-    });
-    addChildComponent (drawerAnim_);  // needs a parent for VBlankAttachment
+    // Drawer slide animation (gm::AnimatedPanel in default VBlank slide mode)
+    // Window is snapped to target size instantly, drawer content slides in/out
+    drawerAnim_.setSlideFrom (gm::AnimatedPanel::SlideFrom::Right);
+    drawerAnim_.setDurationMs (200);
+    // drawerAnim_ content + parent set up per-drawer in toggleDrawer/etc.
 
     startTimerHz (30);
 }
@@ -1381,10 +1378,8 @@ void JoychordEditor::toggleAxisDrawer()
 
 void JoychordEditor::animateToWidth (int targetW)
 {
-    if (targetW > mainWidth)
-        drawerAnim_.show();
-    else
-        drawerAnim_.hide();
+    // Snap window to target size instantly (no per-frame setSize)
+    setSize (targetW, getHeight());
 }
 
 void JoychordEditor::refreshPresetList()
