@@ -806,18 +806,18 @@ void JoychordEditor::paint (juce::Graphics& g)
 
             // Left trigger (LT)
             auto ltRect = juce::Rectangle<float> ((float)dpadCx - trigW / 2, trigY, trigW, trigH);
-            g.setColour (juce::Colour (0xff101018));
-            g.fillRoundedRectangle (ltRect, trigR);
-            g.setColour (juce::Colour (0xff222234));
-            g.drawRoundedRectangle (ltRect, trigR, 1.0f);
-            // Top bevel on trigger
+            gm::buttons::drawButtonShadow (g, ltRect, trigR, 0.2f);
             {
-                juce::ColourGradient tbev (juce::Colour (0x10ffffff), (float)dpadCx, trigY,
-                    juce::Colours::transparentBlack, (float)dpadCx, trigY + 6, false);
-                g.setGradientFill (tbev);
+                auto tGrad = gm::buttons::buildPanelGradient (
+                    juce::Colour (0xff101018), (float)dpadCx, trigY, trigY + trigH, 0.3f);
+                g.setGradientFill (tGrad);
                 g.fillRoundedRectangle (ltRect, trigR);
             }
-            // Analog-scaled glow on LT
+            gm::buttons::drawInnerShadow (g, ltRect, trigR, 0.3f);
+            gm::buttons::drawTopBevel (g, ltRect, trigR, 0.35f, 0.06f);
+            gm::buttons::drawBrushedMetal (g, ltRect, trigR, 0, 0.03f);
+            g.setColour (juce::Colour (0xff222234));
+            g.drawRoundedRectangle (ltRect, trigR, 1.0f);
             if (ltVal > 0.05f) {
                 gm::buttons::drawAccentGlow (g, ltRect, trigR, juce::Colour (0xffff4400), 10.0f, 0.25f * ltVal);
             }
@@ -827,17 +827,18 @@ void JoychordEditor::paint (juce::Graphics& g)
 
             // Right trigger (RT)
             auto rtRect = juce::Rectangle<float> ((float)faceCx - trigW / 2, trigY, trigW, trigH);
-            g.setColour (juce::Colour (0xff101018));
-            g.fillRoundedRectangle (rtRect, trigR);
-            g.setColour (juce::Colour (0xff222234));
-            g.drawRoundedRectangle (rtRect, trigR, 1.0f);
+            gm::buttons::drawButtonShadow (g, rtRect, trigR, 0.2f);
             {
-                juce::ColourGradient tbev (juce::Colour (0x10ffffff), (float)faceCx, trigY,
-                    juce::Colours::transparentBlack, (float)faceCx, trigY + 6, false);
-                g.setGradientFill (tbev);
+                auto tGrad = gm::buttons::buildPanelGradient (
+                    juce::Colour (0xff101018), (float)faceCx, trigY, trigY + trigH, 0.3f);
+                g.setGradientFill (tGrad);
                 g.fillRoundedRectangle (rtRect, trigR);
             }
-            // Analog-scaled glow on RT
+            gm::buttons::drawInnerShadow (g, rtRect, trigR, 0.3f);
+            gm::buttons::drawTopBevel (g, rtRect, trigR, 0.35f, 0.06f);
+            gm::buttons::drawBrushedMetal (g, rtRect, trigR, 0, 0.03f);
+            g.setColour (juce::Colour (0xff222234));
+            g.drawRoundedRectangle (rtRect, trigR, 1.0f);
             if (rtVal > 0.05f) {
                 gm::buttons::drawAccentGlow (g, rtRect, trigR, accent, 10.0f, 0.25f * rtVal);
             }
@@ -855,15 +856,17 @@ void JoychordEditor::paint (juce::Graphics& g)
 
             // Left bumper
             auto lbRect = juce::Rectangle<float> ((float)dpadCx - bumpW / 2, bumpY, bumpW, bumpH);
-            g.setColour (lb ? juce::Colour (0xffff4400) : juce::Colour (0xff181824));
-            g.fillRoundedRectangle (lbRect, bumpR);
-            // Bevel
+            gm::buttons::drawButtonShadow (g, lbRect, bumpR, 0.15f);
             {
-                juce::ColourGradient bev (lb ? juce::Colour (0x30ffffff) : juce::Colour (0x0cffffff),
-                    (float)dpadCx, bumpY, juce::Colours::transparentBlack, (float)dpadCx, bumpY + bumpH, false);
-                g.setGradientFill (bev);
+                auto bGrad = gm::buttons::buildPanelGradient (
+                    lb ? juce::Colour (0xffff4400) : juce::Colour (0xff181824),
+                    (float)dpadCx, bumpY, bumpY + bumpH, 0.3f);
+                g.setGradientFill (bGrad);
                 g.fillRoundedRectangle (lbRect, bumpR);
             }
+            gm::buttons::drawInnerShadow (g, lbRect, bumpR, 0.25f);
+            gm::buttons::drawTopBevel (g, lbRect, bumpR, 0.4f, lb ? 0.1f : 0.05f);
+            gm::buttons::drawBrushedMetal (g, lbRect, bumpR, 0, 0.03f);
             g.setColour (lb ? juce::Colour (0xffff6633).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
             g.drawRoundedRectangle (lbRect, bumpR, 1.0f);
             if (lb) gm::buttons::drawAccentGlow (g, lbRect, bumpR, juce::Colour (0xffff4400), 10.0f, 0.3f);
@@ -873,14 +876,17 @@ void JoychordEditor::paint (juce::Graphics& g)
 
             // Right bumper
             auto rbRect = juce::Rectangle<float> ((float)faceCx - bumpW / 2, bumpY, bumpW, bumpH);
-            g.setColour (rb ? accent : juce::Colour (0xff181824));
-            g.fillRoundedRectangle (rbRect, bumpR);
+            gm::buttons::drawButtonShadow (g, rbRect, bumpR, 0.15f);
             {
-                juce::ColourGradient bev (rb ? juce::Colour (0x30ffffff) : juce::Colour (0x0cffffff),
-                    (float)faceCx, bumpY, juce::Colours::transparentBlack, (float)faceCx, bumpY + bumpH, false);
-                g.setGradientFill (bev);
+                auto bGrad = gm::buttons::buildPanelGradient (
+                    rb ? accent : juce::Colour (0xff181824),
+                    (float)faceCx, bumpY, bumpY + bumpH, 0.3f);
+                g.setGradientFill (bGrad);
                 g.fillRoundedRectangle (rbRect, bumpR);
             }
+            gm::buttons::drawInnerShadow (g, rbRect, bumpR, 0.25f);
+            gm::buttons::drawTopBevel (g, rbRect, bumpR, 0.4f, rb ? 0.1f : 0.05f);
+            gm::buttons::drawBrushedMetal (g, rbRect, bumpR, 0, 0.03f);
             g.setColour (rb ? accent.brighter (0.3f).withAlpha (0.6f) : juce::Colour (0xff2a2a3c));
             g.drawRoundedRectangle (rbRect, bumpR, 1.0f);
             if (rb) gm::buttons::drawAccentGlow (g, rbRect, bumpR, accent, 10.0f, 0.3f);
@@ -955,6 +961,10 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.setGradientFill (stickGrad);
             g.fillEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
 
+            auto lsRect = juce::Rectangle<float> (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
+            gm::buttons::drawSpecularDome (g, lsRect, tsR, 0.2f);
+            gm::buttons::drawSurfaceGrain (g, lsRect, tsR, 0.02f);
+
             // Rim
             g.setColour (juce::Colour (0xff383850));
             g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 1.0f);
@@ -986,6 +996,10 @@ void JoychordEditor::paint (juce::Graphics& g)
             g.setGradientFill (stickGrad);
             g.fillEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
 
+            auto rsRect = juce::Rectangle<float> (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2);
+            gm::buttons::drawSpecularDome (g, rsRect, tsR, 0.2f);
+            gm::buttons::drawSurfaceGrain (g, rsRect, tsR, 0.02f);
+
             g.setColour (juce::Colour (0xff383850));
             g.drawEllipse (tsx - tsR, tsy - tsR, tsR * 2, tsR * 2, 1.0f);
 
@@ -1009,6 +1023,8 @@ void JoychordEditor::paint (juce::Graphics& g)
             if (pressed) {
                 g.setColour (grey);
                 g.fillRoundedRectangle (area, 3.0f);
+                gm::buttons::drawInnerShadow (g, area, 3.0f, 0.2f);
+                gm::buttons::drawTopBevel (g, area, 3.0f, 0.4f, 0.08f);
                 gm::buttons::drawAccentGlow (g, area, 6.0f, grey, 8.0f, 0.2f);
             }
             g.setColour (pressed ? juce::Colours::white : juce::Colour (0xff505064));
@@ -1038,12 +1054,20 @@ void JoychordEditor::paint (juce::Graphics& g)
 
         gm::buttons::drawButtonShadow (g, btnRect, fr, pressed ? 0.1f : 0.25f);
 
-        g.setColour (pressed ? col : col.withAlpha (0.15f));
-        g.fillEllipse (btnRect);
+        // Radial gradient body (light->dark top->bottom)
+        {
+            auto baseCol = pressed ? col : col.withAlpha (0.15f);
+            juce::ColourGradient radGrad (baseCol.brighter (0.15f), fx, fy - fr * 0.6f,
+                baseCol.darker (0.2f), fx, fy + fr, false);
+            g.setGradientFill (radGrad);
+            g.fillEllipse (btnRect);
+        }
 
-        gm::buttons::drawInnerShadow (g, btnRect, fr, 0.3f);
-        gm::buttons::drawSpecularDome (g, btnRect, fr, pressed ? 0.6f : 0.25f);
-        gm::buttons::drawRimLighting (g, btnRect, fr, 0.12f, 0.2f);
+        gm::buttons::drawInnerShadow (g, btnRect, fr, 0.35f);
+        gm::buttons::drawSurfaceGrain (g, btnRect, fr, 0.015f);
+        gm::buttons::drawBrushedMetal (g, btnRect, fr, 0, 0.025f);
+        gm::buttons::drawSpecularDome (g, btnRect, fr, pressed ? 0.6f : 0.3f);
+        gm::buttons::drawRimLighting (g, btnRect, fr, 0.15f, 0.25f);
 
         g.setColour (pressed ? col.brighter (0.3f) : juce::Colour (0xff505060));
         g.drawEllipse (btnRect, 1.5f);
