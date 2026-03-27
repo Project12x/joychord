@@ -129,8 +129,16 @@ private:
     std::unique_ptr<AxisDrawer> axisDrawer;
     bool axisDrawerOpen = false;
 
-    // Drawer animation (gm::AnimatedPanel in callback mode — VBlank-synced)
+    // Drawer animation (gm::AnimatedPanel in callback mode -- setTransform slide)
     gm::AnimatedPanel drawerAnim_;
+
+    /// Returns whichever drawer is currently active (effects, synth, or axis)
+    juce::Component* getActiveDrawer() const {
+        if (drawerOpen && effectsDrawer) return effectsDrawer.get();
+        if (synthDrawerOpen && synthDrawer) return synthDrawer.get();
+        if (axisDrawerOpen && axisDrawer) return axisDrawer.get();
+        return nullptr;
+    }
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;

@@ -334,11 +334,28 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     setSize (mainWidth, 480);
 
-    // Drawer slide animation (gm::AnimatedPanel in default VBlank slide mode)
-    // Window is snapped to target size instantly, drawer content slides in/out
-    drawerAnim_.setSlideFrom (gm::AnimatedPanel::SlideFrom::Right);
+    // Drawer slide animation (callback mode — setTransform, not setSize)
     drawerAnim_.setDurationMs (200);
-    // drawerAnim_ content + parent set up per-drawer in toggleDrawer/etc.
+    drawerAnim_.setOnProgress ([this](float t) {
+        // Slide active drawer from +drawerWidth (off-screen right) to 0 (in place)
+        auto* activeDrawer = getActiveDrawer();
+        if (activeDrawer) {
+            float dx = (float)drawerWidth * (1.0f - t);
+            activeDrawer->setTransform (juce::AffineTransform::translation (dx, 0.0f));
+        }
+    });
+    drawerAnim_.setOnComplete ([this](bool showing) {
+        if (!showing) {
+            // Slide-out done: snap window back and hide drawer
+            auto* activeDrawer = getActiveDrawer();
+            if (activeDrawer) {
+                activeDrawer->setTransform ({});
+                activeDrawer->setVisible (false);
+            }
+            setSize (mainWidth, getHeight());
+        }
+    });
+    addChildComponent (drawerAnim_);  // parent needed for VBlank peer
 
     startTimerHz (30);
 }
@@ -1309,76 +1326,87 @@ void JoychordEditor::resized()
 
 void JoychordEditor::toggleDrawer()
 {
-    // If synth drawer is open, close it first
+    // If synth drawer is open, close it first (instant, no animation)
     if (synthDrawerOpen)
     {
         synthDrawerOpen = false;
-        if (synthDrawer) synthDrawer->setVisible (false);
+        if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
         synthDrawerBtn.setup ("SYN");
     }
     if (axisDrawerOpen)
     {
         axisDrawerOpen = false;
-        if (axisDrawer) axisDrawer->setVisible (false);
+        if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
         axisDrawerBtn.setup ("CTRL");
     }
 
     drawerOpen = !drawerOpen;
-    int targetW = drawerOpen ? mainWidth + drawerWidth : mainWidth;
-    if (effectsDrawer) effectsDrawer->setVisible (drawerOpen);
-    animateToWidth (targetW);
+    if (drawerOpen) {
+        setSize (mainWidth + drawerWidth, getHeight());  // snap open
+        if (effectsDrawer) effectsDrawer->setVisible (true);
+        drawerAnim_.show();  // slide content in
+    } else {
+        drawerAnim_.hide();  // slide content out, onComplete snaps back
+    }
     fxDrawerBtn.setup (drawerOpen ? "<<" : "FX");
 }
 
 void JoychordEditor::toggleSynthDrawer()
 {
-    // If effects drawer is open, close it first
+    // If effects drawer is open, close it first (instant)
     if (drawerOpen)
     {
         drawerOpen = false;
-        if (effectsDrawer) effectsDrawer->setVisible (false);
+        if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
         fxDrawerBtn.setup ("FX");
     }
     if (axisDrawerOpen)
     {
         axisDrawerOpen = false;
-        if (axisDrawer) axisDrawer->setVisible (false);
+        if (axisDrawer) { axisDrawer->setTransform ({}); axisDrawer->setVisible (false); }
         axisDrawerBtn.setup ("CTRL");
     }
 
     synthDrawerOpen = !synthDrawerOpen;
-    int targetW = synthDrawerOpen ? mainWidth + drawerWidth : mainWidth;
-    if (synthDrawer) synthDrawer->setVisible (synthDrawerOpen);
-    animateToWidth (targetW);
+    if (synthDrawerOpen) {
+        setSize (mainWidth + drawerWidth, getHeight());
+        if (synthDrawer) synthDrawer->setVisible (true);
+        drawerAnim_.show();
+    } else {
+        drawerAnim_.hide();
+    }
     synthDrawerBtn.setup (synthDrawerOpen ? "<<" : "SYN");
 }
 
 void JoychordEditor::toggleAxisDrawer()
 {
-    // Close other drawers first
+    // Close other drawers first (instant)
     if (drawerOpen)
     {
         drawerOpen = false;
-        if (effectsDrawer) effectsDrawer->setVisible (false);
+        if (effectsDrawer) { effectsDrawer->setTransform ({}); effectsDrawer->setVisible (false); }
         fxDrawerBtn.setup ("FX");
     }
     if (synthDrawerOpen)
     {
         synthDrawerOpen = false;
-        if (synthDrawer) synthDrawer->setVisible (false);
+        if (synthDrawer) { synthDrawer->setTransform ({}); synthDrawer->setVisible (false); }
         synthDrawerBtn.setup ("SYN");
     }
 
     axisDrawerOpen = !axisDrawerOpen;
-    int targetW = axisDrawerOpen ? mainWidth + drawerWidth : mainWidth;
-    if (axisDrawer) axisDrawer->setVisible (axisDrawerOpen);
-    animateToWidth (targetW);
+    if (axisDrawerOpen) {
+        setSize (mainWidth + drawerWidth, getHeight());
+        if (axisDrawer) axisDrawer->setVisible (true);
+        drawerAnim_.show();
+    } else {
+        drawerAnim_.hide();
+    }
     axisDrawerBtn.setup (axisDrawerOpen ? "<<" : "CTRL");
 }
 
 void JoychordEditor::animateToWidth (int targetW)
 {
-    // Snap window to target size instantly (no per-frame setSize)
     setSize (targetW, getHeight());
 }
 
