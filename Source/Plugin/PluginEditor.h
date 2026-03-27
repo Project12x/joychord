@@ -128,11 +128,13 @@ private:
     std::unique_ptr<AxisDrawer> axisDrawer;
     bool axisDrawerOpen = false;
 
-    // Drawer animation
-    int   animStartW = 0;
-    int   animTargetW = 0;
-    float animProgress = 1.0f;  // 0..1; 1 = done
-    static constexpr float kAnimSpeed = 0.15f; // seconds
+    // Drawer animation (VBlank-driven via timerCallback polling)
+    int   animStartW_  = 0;
+    int   animTargetW_ = 0;
+    float animStart_   = 0.0f;   // start width as float
+    float animCurrent_ = 0.0f;   // current interpolated position
+    bool  animating_   = false;
+    static constexpr float kAnimDurationMs_ = 150.0f; // milliseconds
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;

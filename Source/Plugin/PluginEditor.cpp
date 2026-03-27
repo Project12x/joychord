@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <cmath>
 #include <BinaryData.h>
 
 static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
@@ -366,17 +367,28 @@ void JoychordEditor::timerCallback()
     rsY = processor.rStickYState.load();
     connected = processor.gamepadConnected.load();
 
-    // Drawer slide animation
-    if (animProgress < 1.0f)
+    // VBlank-driven drawer width animation (display-sync'd, sub-frame smooth)
+    if (animating_)
     {
-        animProgress += (1.0f / 30.0f) / kAnimSpeed;  // 30fps timer
-        if (animProgress >= 1.0f)
-            animProgress = 1.0f;
+        float target = (float)animTargetW_;
+        float step = 16.67f / (kAnimDurationMs_);  // ~one display frame per step
+        if (target > animCurrent_)
+            animCurrent_ = std::min(target, animCurrent_ + step * (target - animStart_));
+        else
+            animCurrent_ = std::max(target, animCurrent_ - step * (animStart_ - target));
 
-        // Ease-out (decelerate)
-        float t = 1.0f - (1.0f - animProgress) * (1.0f - animProgress);
-        int w = animStartW + static_cast<int> (t * (animTargetW - animStartW));
-        setSize (w, getHeight());
+        float progress = (animStart_ == target) ? 1.0f
+            : std::fabs(animCurrent_ - animStart_) / std::fabs(target - animStart_);
+        if (progress >= 0.995f)
+        {
+            animCurrent_ = target;
+            animating_ = false;
+        }
+
+        // Ease-out cubic for premium deceleration
+        float t = 1.0f - (1.0f - progress) * (1.0f - progress) * (1.0f - progress);
+        int w = animStartW_ + static_cast<int>(t * (animTargetW_ - animStartW_));
+        setSize(w, getHeight());
     }
 
     // Only show Load SFZ button if SFZ (index 4) is selected
@@ -1382,9 +1394,11 @@ void JoychordEditor::toggleAxisDrawer()
 
 void JoychordEditor::animateToWidth (int targetW)
 {
-    animStartW = getWidth();
-    animTargetW = targetW;
-    animProgress = 0.0f;
+    animStartW_ = getWidth();
+    animTargetW_ = targetW;
+    animStart_ = (float)animStartW_;
+    animCurrent_ = animStart_;
+    animating_ = true;
 }
 
 void JoychordEditor::refreshPresetList()
