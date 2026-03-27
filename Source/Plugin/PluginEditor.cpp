@@ -334,19 +334,19 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
 
     setSize (mainWidth, 480);
 
-    // Drawer slide animation (callback mode — setTransform, not setSize)
+    // Drawer slide animation (callback mode -- setTransform, not setSize)
+    // Drawer slides from behind main window (left) outward to the right
     drawerAnim_.setDurationMs (200);
     drawerAnim_.setOnProgress ([this](float t) {
-        // Slide active drawer from +drawerWidth (off-screen right) to 0 (in place)
         auto* activeDrawer = getActiveDrawer();
         if (activeDrawer) {
-            float dx = (float)drawerWidth * (1.0f - t);
+            // t=0: -drawerWidth (behind main panel), t=1: 0 (natural position)
+            float dx = -(float)drawerWidth * (1.0f - t);
             activeDrawer->setTransform (juce::AffineTransform::translation (dx, 0.0f));
         }
     });
     drawerAnim_.setOnComplete ([this](bool showing) {
         if (!showing) {
-            // Slide-out done: snap window back and hide drawer
             auto* activeDrawer = getActiveDrawer();
             if (activeDrawer) {
                 activeDrawer->setTransform ({});
@@ -1340,10 +1340,11 @@ void JoychordEditor::toggleDrawer()
 
     drawerOpen = !drawerOpen;
     if (drawerOpen) {
-        // Pre-position off-screen right BEFORE making visible (prevent 1-frame flash)
+        // Pre-position behind main panel, make visible behind all content
         if (effectsDrawer) {
-            effectsDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
+            effectsDrawer->setTransform (juce::AffineTransform::translation (-(float)drawerWidth, 0.0f));
             effectsDrawer->setVisible (true);
+            effectsDrawer->toBack();  // behind main content during slide
         }
         setSize (mainWidth + drawerWidth, getHeight());
         drawerAnim_.show();
@@ -1370,8 +1371,9 @@ void JoychordEditor::toggleSynthDrawer()
     synthDrawerOpen = !synthDrawerOpen;
     if (synthDrawerOpen) {
         if (synthDrawer) {
-            synthDrawer->setTransform (juce::AffineTransform::translation ((float)drawerWidth, 0.0f));
+            synthDrawer->setTransform (juce::AffineTransform::translation (-(float)drawerWidth, 0.0f));
             synthDrawer->setVisible (true);
+            synthDrawer->toBack();
         }
         setSize (mainWidth + drawerWidth, getHeight());
         drawerAnim_.show();
