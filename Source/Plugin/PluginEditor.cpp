@@ -1,5 +1,4 @@
 #include "PluginEditor.h"
-#include <cmath>
 #include <BinaryData.h>
 
 static const juce::StringArray kNoteNames {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
@@ -334,6 +333,15 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     addAndMakeVisible (dpiScaleBox);
 
     setSize (mainWidth, 480);
+
+    // Wire drawer animation (gm::AnimatedPanel in callback mode)
+    drawerAnim_.setDurationMs (150);
+    drawerAnim_.setOnProgress ([this](float t) {
+        int w = mainWidth + static_cast<int>(t * drawerWidth);
+        setSize (w, getHeight());
+    });
+    addChildComponent (drawerAnim_);  // needs a parent for VBlankAttachment
+
     startTimerHz (30);
 }
 
@@ -367,29 +375,7 @@ void JoychordEditor::timerCallback()
     rsY = processor.rStickYState.load();
     connected = processor.gamepadConnected.load();
 
-    // VBlank-driven drawer width animation (display-sync'd, sub-frame smooth)
-    if (animating_)
-    {
-        float target = (float)animTargetW_;
-        float step = 16.67f / (kAnimDurationMs_);  // ~one display frame per step
-        if (target > animCurrent_)
-            animCurrent_ = std::min(target, animCurrent_ + step * (target - animStart_));
-        else
-            animCurrent_ = std::max(target, animCurrent_ - step * (animStart_ - target));
-
-        float progress = (animStart_ == target) ? 1.0f
-            : std::fabs(animCurrent_ - animStart_) / std::fabs(target - animStart_);
-        if (progress >= 0.995f)
-        {
-            animCurrent_ = target;
-            animating_ = false;
-        }
-
-        // Ease-out cubic for premium deceleration
-        float t = 1.0f - (1.0f - progress) * (1.0f - progress) * (1.0f - progress);
-        int w = animStartW_ + static_cast<int>(t * (animTargetW_ - animStartW_));
-        setSize(w, getHeight());
-    }
+    // (Drawer animation driven by gm::AnimatedPanel VBlank — no manual tick needed)
 
     // Only show Load SFZ button if SFZ (index 4) is selected
     loadSfzBtn.setVisible (static_cast<int>(processor.apvts.getParameterAsValue("synthMode").getValue()) == 3);
@@ -1394,11 +1380,10 @@ void JoychordEditor::toggleAxisDrawer()
 
 void JoychordEditor::animateToWidth (int targetW)
 {
-    animStartW_ = getWidth();
-    animTargetW_ = targetW;
-    animStart_ = (float)animStartW_;
-    animCurrent_ = animStart_;
-    animating_ = true;
+    if (targetW > mainWidth)
+        drawerAnim_.show();
+    else
+        drawerAnim_.hide();
 }
 
 void JoychordEditor::refreshPresetList()

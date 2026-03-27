@@ -18,6 +18,7 @@
 #include "PresetManager.h"
 #include "ToastOverlay.h"
 #include "ButtonStyles.h"
+#include "AnimatedPanel.h"
 #include <melatonin_blur/melatonin_blur.h>
 
 #include "CollapsibleComboBox.h"
@@ -128,13 +129,8 @@ private:
     std::unique_ptr<AxisDrawer> axisDrawer;
     bool axisDrawerOpen = false;
 
-    // Drawer animation (VBlank-driven via timerCallback polling)
-    int   animStartW_  = 0;
-    int   animTargetW_ = 0;
-    float animStart_   = 0.0f;   // start width as float
-    float animCurrent_ = 0.0f;   // current interpolated position
-    bool  animating_   = false;
-    static constexpr float kAnimDurationMs_ = 150.0f; // milliseconds
+    // Drawer animation (gm::AnimatedPanel in callback mode — VBlank-synced)
+    gm::AnimatedPanel drawerAnim_;
 
     // Canvas background tile (crosshatch texture, loaded from BinaryData)
     juce::Image canvasTile;
