@@ -335,7 +335,8 @@ JoychordEditor::JoychordEditor (JoychordProcessor& p)
     setSize (mainWidth, 480);
 
     // Wire drawer animation (gm::AnimatedPanel in callback mode)
-    drawerAnim_.setDurationMs (150);
+    drawerAnim_.setTimerHz (30);     // Timer mode: setSize() is too heavy for VBlank rate
+    drawerAnim_.setDurationMs (250);
     drawerAnim_.setOnProgress ([this](float t) {
         int w = mainWidth + static_cast<int>(t * drawerWidth);
         setSize (w, getHeight());
